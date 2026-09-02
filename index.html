@@ -35,7 +35,7 @@ h1,h2{font-family:var(--display);font-weight:800;margin:0;letter-spacing:-.02em}
 
 .screen{display:none;min-height:100dvh;flex-direction:column}
 .screen.on{display:flex}
-.pad{padding:max(24px,env(safe-area-inset-top)) 20px 28px;gap:20px;max-width:520px;margin:0 auto;width:100%}
+.pad{padding:max(26px,env(safe-area-inset-top)) 20px 28px;gap:20px;max-width:520px;margin:0 auto;width:100%}
 
 .brand{font-family:var(--display);font-weight:800;font-size:clamp(50px,16vw,84px);line-height:.86;letter-spacing:-.045em}
 .brand i{font-style:normal}
@@ -51,7 +51,6 @@ input[type=text]{
   border:1px solid var(--edge);color:var(--cream);font-size:16px;font-family:inherit;
 }
 input[type=text]:focus{outline:none;border-color:var(--brass)}
-input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:center;letter-spacing:.18em;text-transform:uppercase}
 ::placeholder{color:#7E6E62}
 
 .big-btn{width:100%;padding:17px;border-radius:12px;background:var(--brass);color:var(--ink);
@@ -61,19 +60,16 @@ input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:
 .ghost{padding:12px;color:var(--muted);font-size:14px;text-decoration:underline;text-underline-offset:4px}
 .err{color:var(--danger);font-size:14px;min-height:20px}
 
-.roomcode{font-family:var(--display);font-weight:800;font-size:clamp(46px,15vw,72px);letter-spacing:.14em;color:var(--brass);text-align:center;line-height:1}
-.roomhint{text-align:center;color:var(--muted);font-size:14px}
+.lobbyhead{text-align:center}
+.lobbyhead h2{font-size:clamp(30px,9vw,42px);color:var(--brass)}
+.lobbyhead p{color:var(--muted);font-size:14px;margin:6px 0 0}
 .plist{display:flex;flex-direction:column;gap:7px}
 .prow{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--felt);border:1px solid var(--edge);border-radius:10px}
 .prow .dot{width:9px;height:9px;border-radius:50%;background:var(--live);flex:none}
 .prow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prow .tag{color:var(--brass);font-size:12px}
-.opts{display:flex;flex-direction:column;gap:13px;border-top:1px solid var(--edge);padding-top:16px}
-.opt{display:flex;justify-content:space-between;align-items:center;gap:12px}
-.opt small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
-.pick{display:flex;background:var(--felt);border:1px solid var(--edge);border-radius:10px;overflow:hidden;flex:none}
-.pick button{padding:9px 12px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
-.pick button[aria-pressed=true]{background:var(--brass);color:var(--ink);font-weight:700}
+.rulecard{border-top:1px solid var(--edge);padding-top:15px;color:var(--muted);font-size:14px;line-height:1.5}
+.rulecard b{color:var(--cream);font-weight:600}
 
 #game{padding:max(8px,env(safe-area-inset-top)) 14px 0}
 .standings{display:flex;gap:6px;overflow-x:auto;padding-bottom:9px;scrollbar-width:none}
@@ -125,9 +121,10 @@ input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:
 .act:disabled{opacity:.36}
 .watching{text-align:center;padding:17px 10px;color:var(--muted);font-size:15px;
   background:var(--felt);border:1px solid var(--edge);border-radius:12px;flex:1}
-.skipbtn{display:none;width:100%;padding:11px;color:var(--muted);font-size:13px;
+.escape{display:flex;justify-content:center;gap:14px;padding-bottom:6px;min-height:34px}
+.escape button{display:none;color:var(--muted);font-size:13px;padding:8px 4px;
   text-decoration:underline;text-underline-offset:4px}
-.skipbtn.on{display:block}
+.escape button.on{display:block}
 
 .veil{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;
   justify-content:center;gap:15px;padding:30px 24px;text-align:center;
@@ -177,7 +174,7 @@ input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:
 <section id="home" class="screen on pad">
   <div>
     <h1 class="brand"><i>Z</i><i>O</i><i>N</i><i>K</i></h1>
-    <p class="tagline">Six dice, up to eight phones, anywhere in the country.</p>
+    <p class="tagline">Six dice, one table, first to ten thousand.</p>
   </div>
   <div id="configWarn" class="banner" style="display:none">
     Firebase isn't configured yet. Open <b>index.html</b>, find the FIREBASE CONFIG block near the
@@ -187,14 +184,8 @@ input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:
     <label for="myName">Your name</label>
     <input type="text" id="myName" maxlength="14" placeholder="How you'll show up" autocomplete="nickname">
   </div>
-  <div>
-    <label for="joinCode">Room code</label>
-    <input type="text" id="joinCode" class="code" maxlength="4" placeholder="- - - -"
-           autocomplete="off" autocapitalize="characters" inputmode="text" spellcheck="false">
-  </div>
   <div class="err" id="homeErr"></div>
-  <button class="big-btn" id="btnJoin">Join room</button>
-  <button class="big-btn quiet" id="btnHost">Start a new room</button>
+  <button class="big-btn" id="btnSit">Sit down at the table</button>
   <div style="display:flex;justify-content:center;gap:6px">
     <button class="ghost" id="openRules1">Rules</button>
     <button class="ghost" id="openHall1">Hall of fame</button>
@@ -202,27 +193,21 @@ input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:
 </section>
 
 <section id="lobby" class="screen pad">
-  <div>
-    <div class="roomcode" id="lobbyCode">----</div>
-    <div class="roomhint">Everyone types this code on their own phone</div>
+  <div class="lobbyhead">
+    <h2>At the table</h2>
+    <p id="lobbySub">Waiting for players</p>
   </div>
   <div class="plist" id="lobbyList"></div>
   <button class="big-btn quiet" id="btnAlerts">Turn on turn alerts</button>
-  <div class="opts" id="hostOpts">
-    <div class="opt">
-      <div>Play to<small>First past it triggers a final round.</small></div>
-      <div class="pick" id="pickTarget"></div>
-    </div>
-    <div class="opt">
-      <div>Hot dice<small>All six score - pick them up and keep going.</small></div>
-      <div class="pick" id="pickHot"></div>
-    </div>
+  <div class="rulecard">
+    Playing to <b>10,000</b>. Bank at <b>300</b>, or <b>500</b> for your first score.
+    All six dice scoring means <b>hot dice</b> — you pick them all back up and must roll again.
   </div>
   <div class="err" id="lobbyErr"></div>
   <button class="big-btn" id="btnStart">Start game</button>
   <div style="display:flex;justify-content:center;gap:6px">
     <button class="ghost" id="openRules2">Rules</button>
-    <button class="ghost" id="btnLeave">Leave room</button>
+    <button class="ghost" id="btnLeave">Leave the table</button>
   </div>
 </section>
 
@@ -238,7 +223,10 @@ input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:
     <div class="row kept-row" id="keptRow"></div>
   </div>
   <div class="actions" id="actions"></div>
-  <button class="skipbtn" id="btnSkip">This player seems stuck - skip their turn</button>
+  <div class="escape">
+    <button id="btnSkip">Skip this player</button>
+    <button id="btnAbandon">Abandon this game</button>
+  </div>
 </section>
 
 <div class="veil" id="veilZonk">
@@ -254,13 +242,13 @@ input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:
   <input type="text" id="quoteInput" maxlength="140" placeholder="Say something for the record">
   <button class="big-btn" id="btnQuote">Post it</button>
   <button class="ghost" id="btnSkipQuote">Skip</button>
-  <button class="big-btn quiet" id="btnDone" style="max-width:340px">Back to start</button>
+  <button class="big-btn quiet" id="btnDone" style="max-width:340px">Back to the table</button>
 </div>
 
 <div class="veil scroll-veil" id="veilRules">
   <div class="doc">
     <h2>How Zonk works</h2>
-    <p>Roll six dice. Set aside at least one scoring die, then choose: bank what you've got, or roll what's left and risk it all.</p>
+    <p>Roll six dice. Set aside at least one scoring die, then choose: bank what you've got, or roll what's left and risk it all. First to 10,000 triggers the final round.</p>
     <h3>Scoring</h3>
     <dl>
       <dt>Each 1</dt><dd>100</dd><dt>Each 5</dt><dd>50</dd>
@@ -274,10 +262,10 @@ input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:
       <li>Every roll, keep at least one scoring die. Dice that don't score can't be kept.</li>
       <li>Bank once you have 300 in the turn, or 500 if you haven't scored yet this game. Setting aside four or five dice also unlocks banking.</li>
       <li>A roll with nothing scoring is a zonk: turn over, turn points gone.</li>
-      <li>All six dice set aside means hot dice - they come back and you roll again.</li>
+      <li>All six dice set aside is hot dice - they come back and you have to roll again. No banking on six for six.</li>
     </ul>
     <h3>Winning</h3>
-    <p>Reach the target and everyone else gets one last turn. Highest total wins, and gets to write a line for the hall of fame.</p>
+    <p>Reach 10,000 and everyone else gets one last turn. Highest total wins, and writes a line for the hall of fame.</p>
     <h3>Odds of zonking</h3>
     <ul><li>Six dice - about 2%</li><li>Three dice - about 28%</li>
       <li>Two dice - about 44%</li><li>One die - about 66%</li></ul>
@@ -301,23 +289,26 @@ import { getDatabase, ref, set, get, update, remove, onValue, push,
 
 /* ===============================================================
    FIREBASE CONFIG - paste yours here. Firebase console ->
-   Project settings -> Your apps -> Web app -> SDK setup.
+   Project settings -> Your apps -> Web app -> SDK setup -> Config.
    Keep databaseURL; that is the Realtime Database, not Firestore.
    =============================================================== */
-const firebaseConfig = {
-  apiKey:            "AIzaSyDwtJStc25il_4nEI0_vpSKGu5nomw3iUQ",
-  authDomain: "zonk-255c6.firebaseapp.com",
-  databaseURL: "https://zonk-255c6-default-rtdb.firebaseio.com",
-  projectId: "zonk-255c6",
-  storageBucket: "zonk-255c6.firebasestorage.app",
-  messagingSenderId: "1097565311165",
-  appId: "1:1097565311165:web:28f2665ad72c7c5738e7d4"
-};
 
+
+const firebaseConfig = {
+  apiKey:            "AIzaSy...",                                  // copy from console
+  authDomain:        "zonk-255c6.firebaseapp.com",
+  databaseURL:       "https://zonk-255c6-default-rtdb.firebaseio.com",
+  projectId:         "zonk-255c6",
+  storageBucket:     "zonk-255c6.firebasestorage.app",
+  messagingSenderId: "1097565311165",
+  appId:             "1:1097565311165:web:..."                     // scroll down for this
+};
 /* ================= nothing below needs editing ================= */
 
+const TARGET = 10000;
 const MAX_PLAYERS = 8;
 const IDLE_SKIP_MS = 60000;
+const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const COLORS = ["red","red","white","white","green","green"];
 const $ = id => document.getElementById(id);
@@ -452,127 +443,69 @@ if(!myId){
 }
 $("myName").value = store.get("zonk.name") || "";
 
-let roomCode = null, roomRef = null, unsub = null, room = null;
+let table = null, unsub = null, seated = false;
 let mySel = new Set();
-let lastFaces = "", wasMyTurn = false, idleTimer = null, archived = false;
-let optTarget = 10000, optHot = true;
+let lastFaces = "", wasMyTurn = false, escTimer = null, archived = false;
 
-/* ---------- option pickers ---------- */
-function pickGroup(el, opts, cur, cb){
-  el.innerHTML = "";
-  opts.forEach(o => {
-    const b = document.createElement("button");
-    b.textContent = o.label;
-    b.setAttribute("aria-pressed", String(o.value === cur));
-    b.onclick = () => cb(o.value);
-    el.append(b);
-  });
-}
-function drawOpts(){
-  pickGroup($("pickTarget"),
-    [{label:"5,000",value:5000},{label:"10,000",value:10000},{label:"15,000",value:15000}],
-    optTarget, v => { optTarget = v; drawOpts(); pushMeta(); });
-  pickGroup($("pickHot"),
-    [{label:"Must roll",value:true},{label:"May bank",value:false}],
-    optHot, v => { optHot = v; drawOpts(); pushMeta(); });
-}
-drawOpts();
+const playersRef = () => ref(db, "table/players");
+const gameRef    = () => ref(db, "table/game");
 
-const amHost = () => !!(room && room.meta && room.meta.host === myId);
-function pushMeta(){
-  if(!amHost() || !roomCode) return;
-  update(ref(db, "rooms/"+roomCode+"/meta"), { target: optTarget, hotForced: optHot });
-}
-
-/* ---------- create / join ---------- */
-const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const newCode = () => Array.from({length:4},
-  () => CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join("");
-
+/* ---------- sitting down ---------- */
 const myName = () => $("myName").value.trim().slice(0,14);
 function fail(el,msg){ $(el).textContent = msg; return false; }
 
-function guard(){
+async function sitDown(){
   if(!configured) return fail("homeErr","Add your Firebase config to index.html first.");
   if(!myName()) return fail("homeErr","Put your name in first.");
   store.set("zonk.name", myName());
   $("homeErr").textContent = "";
-  return true;
-}
 
-async function hostRoom(){
-  if(!guard()) return;
-  let code;
-  for(let i=0;i<8;i++){
-    code = newCode();
-    const s = await get(ref(db, "rooms/"+code+"/meta"));
-    if(!s.exists()) break;
-  }
-  await set(ref(db, "rooms/"+code), {
-    meta: { host: myId, status: "lobby", target: optTarget,
-            hotForced: optHot, created: Date.now() },
-    players: { [myId]: { name: myName(), joined: Date.now() } }
+  const snap = await get(playersRef());
+  const players = snap.exists() ? snap.val() : {};
+  if(!players[myId] && Object.keys(players).length >= MAX_PLAYERS)
+    return fail("homeErr","The table is full at eight players.");
+
+  await set(ref(db, "table/players/" + myId), {
+    name: myName(),
+    joined: players[myId] ? players[myId].joined : Date.now()
   });
-  enterRoom(code);
+  try{ onDisconnect(ref(db, "table/players/" + myId)).remove(); }catch(e){}
+
+  seated = true;
+  store.set("zonk.seated", "1");
+  listen();
 }
 
-async function joinRoom(){
-  if(!guard()) return;
-  const code = $("joinCode").value.trim().toUpperCase();
-  if(code.length !== 4) return fail("homeErr","Room codes are four characters.");
-  const snap = await get(ref(db, "rooms/"+code));
-  if(!snap.exists()) return fail("homeErr","No room with that code. Check it and try again.");
-  const data = snap.val(), players = data.players || {};
-  const already = !!players[myId];
-  if(!already && Object.keys(players).length >= MAX_PLAYERS)
-    return fail("homeErr","That room is full at eight players.");
-  if(!already && data.meta && data.meta.status !== "lobby")
-    return fail("homeErr","That game is already underway.");
-  await set(ref(db, "rooms/"+code+"/players/"+myId),
-            { name: myName(), joined: already ? players[myId].joined : Date.now() });
-  enterRoom(code);
-}
-
-function enterRoom(code){
-  roomCode = code;
-  store.set("zonk.room", code);
-  $("lobbyCode").textContent = code;
-  roomRef = ref(db, "rooms/"+code);
+function listen(){
   if(unsub) unsub();
-  unsub = onValue(roomRef, snap => {
-    if(!snap.exists()) return leaveRoom();
-    room = snap.val();
+  unsub = onValue(ref(db, "table"), snap => {
+    table = snap.exists() ? snap.val() : {};
     render();
   });
-  show("lobby");
 }
 
-function leaveRoom(){
+function leaveTable(){
   if(unsub){ unsub(); unsub = null; }
-  if(roomCode && room && room.meta && room.meta.status === "lobby" && !amHost())
-    remove(ref(db, "rooms/"+roomCode+"/players/"+myId)).catch(()=>{});
-  roomCode = null; room = null; roomRef = null;
-  store.del("zonk.room");
+  remove(ref(db, "table/players/" + myId)).catch(()=>{});
+  seated = false; table = null;
+  store.del("zonk.seated");
   veil("veilWin", false); veil("veilZonk", false);
   wasMyTurn = false; archived = false; mySel.clear();
   show("home");
 }
 
 function startGame(){
-  if(!amHost()) return;
-  const players = room.players || {};
+  const players = (table && table.players) || {};
   const order = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
   if(order.length < 2) return fail("lobbyErr","You need at least two players.");
   const names = {}, scores = {}, entered = {};
   order.forEach(p => { names[p] = players[p].name || "Player"; scores[p] = 0; entered[p] = false; });
-  set(ref(db, "rooms/"+roomCode), {
-    meta: Object.assign({}, room.meta, { status:"playing", target:optTarget, hotForced:optHot }),
-    players,
-    game: { order, names, scores, entered, turn:0,
-      faces:[1,3,5,2,6,4], states:["tray","tray","tray","tray","tray","tray"],
-      points:0, live:6, rolled:false, zonk:false, zonkText:"",
-      finalRound:false, triggeredBy:null, over:false,
-      winner:null, quote:"", stamp: Date.now() }
+  set(gameRef(), {
+    order, names, scores, entered, turn: 0,
+    faces:[1,3,5,2,6,4], states:["tray","tray","tray","tray","tray","tray"],
+    points:0, live:6, rolled:false, zonk:false, zonkText:"",
+    finalRound:false, triggeredBy:null, over:false,
+    winner:null, quote:"", stamp: Date.now()
   });
 }
 
@@ -598,16 +531,13 @@ function dieNode(i, face, state, small, interactive){
 }
 
 function render(){
-  if(!room) return;
-  if(!room.meta || room.meta.status === "lobby") renderLobby();
-  else renderGame();
+  if(!seated || !table) return;
+  if(table.game) renderGame(); else renderLobby();
 }
 
 function renderLobby(){
   show("lobby");
-  optTarget = room.meta.target; optHot = room.meta.hotForced;
-  drawOpts();
-  const players = room.players || {};
+  const players = table.players || {};
   const ids = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
   const list = $("lobbyList"); list.innerHTML = "";
   ids.forEach(id => {
@@ -615,26 +545,21 @@ function renderLobby(){
     row.className = "prow";
     row.innerHTML = "<span class='dot'></span><span class='nm'></span><span class='tag'></span>";
     row.querySelector(".nm").textContent = players[id].name || "Player";
-    const tags = [];
-    if(id === room.meta.host) tags.push("host");
-    if(id === myId) tags.push("you");
-    row.querySelector(".tag").textContent = tags.join(" / ");
+    row.querySelector(".tag").textContent = id === myId ? "you" : "";
     list.append(row);
   });
-  const host = amHost();
-  $("hostOpts").style.display = host ? "" : "none";
-  $("btnStart").style.display = host ? "" : "none";
-  $("lobbyErr").textContent = host
-    ? (ids.length < 2 ? "Waiting for at least one more player." : "")
-    : "Waiting for the host to start.";
+  $("lobbySub").textContent = ids.length === 1
+    ? "Just you so far" : ids.length + " players, in join order";
+  $("btnStart").disabled = ids.length < 2;
+  $("lobbyErr").textContent = ids.length < 2 ? "Waiting for at least one more player." : "";
 }
 
 function renderGame(){
-  const g = room.game;
-  if(!g) return;
+  const g = table.game;
   show("game");
   const active = g.order[g.turn];
   const myTurn = active === myId && !g.over;
+  const iPlay = g.order.indexOf(myId) >= 0;
 
   const s = $("standings"); s.innerHTML = "";
   g.order.forEach(pid => {
@@ -648,7 +573,8 @@ function renderGame(){
 
   $("whoNow").textContent = g.over ? "Game over"
     : (myTurn ? "Your turn" : g.names[active] + "'s turn");
-  $("phase").textContent = (g.finalRound && !g.over) ? "/ final round" : "";
+  $("phase").textContent = (g.finalRound && !g.over) ? "/ final round"
+    : (iPlay ? "" : "/ watching");
 
   const faces = g.faces, states = g.states.slice();
   if(myTurn && g.rolled && !g.zonk)
@@ -697,14 +623,18 @@ function renderGame(){
 
   veil("veilZonk", !!g.zonk);
   if(g.zonk) $("zonkText").textContent = g.zonkText || "";
-
   if(g.over) renderWin(g); else veil("veilWin", false);
 
-  clearTimeout(idleTimer);
+  clearTimeout(escTimer);
   $("btnSkip").classList.remove("on");
+  $("btnAbandon").classList.remove("on");
   if(!g.over && !myTurn){
-    const wait = Math.max(2000, IDLE_SKIP_MS - (Date.now() - g.stamp));
-    idleTimer = setTimeout(() => $("btnSkip").classList.add("on"), wait);
+    const since = Date.now() - g.stamp;
+    escTimer = setTimeout(() => {
+      $("btnSkip").classList.add("on");
+      setTimeout(() => $("btnAbandon").classList.add("on"),
+        Math.max(1000, ABANDON_MS - IDLE_SKIP_MS));
+    }, Math.max(1500, IDLE_SKIP_MS - since));
   }
 }
 
@@ -714,7 +644,6 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   const box = $("actions"), hint = $("hint");
   hint.className = "hint";
   box.innerHTML = "";
-
   if(g.over){ hint.textContent = ""; return; }
 
   if(!myTurn){
@@ -742,34 +671,31 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   const keptCount = g.states.filter(x => x==="kept").length;
   const setAside = selFaces.length + keptCount;
   const left = g.live - selFaces.length;
-  const forcedHot = room.meta.hotForced && valid && left === 0;
-  const canBank = valid && !forcedHot &&
+  const hotDice = valid && left === 0;
+  const canBank = valid && !hotDice &&
     (running >= bankFloor(g) || setAside === 4 || setAside === 5);
 
   roll.disabled = !valid;
   bank.disabled = !canBank;
-  roll.textContent = left === 0 ? "Keep all six" : "Keep & roll " + left;
+  roll.textContent = hotDice ? "Hot dice - roll all six" : "Keep & roll " + left;
   bank.textContent = "Bank " + (valid ? running.toLocaleString() : "");
 
   if(!selFaces.length) hint.textContent = "Keep at least one scoring die.";
   else if(selScore === null){
     hint.className = "hint warn";
     hint.textContent = "One of those doesn't score on its own.";
-  } else if(forcedHot){
+  } else if(hotDice){
     hint.className = "hint good";
-    hint.textContent = "All six score - hot dice, you have to roll again.";
+    hint.textContent = "All six score - you have to roll again.";
   } else if(!canBank){
     hint.textContent = "Need " + bankFloor(g).toLocaleString() + " to bank.";
   } else {
     hint.className = "hint good";
-    hint.textContent = left === 0 ? "Six for six - hot dice if you roll."
-                                  : "Good to bank or push on.";
+    hint.textContent = "Good to bank or push on.";
   }
 }
 
 /* ---------- actions: only the active player writes ---------- */
-const gameRef = () => ref(db, "rooms/"+roomCode+"/game");
-
 function commitSelection(g){
   const sel = [...mySel].filter(i => g.states[i] === "tray");
   if(!sel.length) return null;
@@ -781,7 +707,7 @@ function commitSelection(g){
 }
 
 function doRoll(){
-  const g = room.game;
+  const g = table.game;
   let states = g.states.slice(), points = g.points, live = g.live;
   if(mySel.size){
     const c = commitSelection(g);
@@ -808,7 +734,7 @@ function doRoll(){
 }
 
 function doBank(){
-  const g = room.game;
+  const g = table.game;
   let points = g.points;
   if(mySel.size){
     const c = commitSelection(g);
@@ -820,14 +746,14 @@ function doBank(){
 }
 
 function advance(gained){
-  const g = room.game;
+  const g = table.game;
   const me = g.order[g.turn];
   const scores = Object.assign({}, g.scores);
   const entered = Object.assign({}, g.entered);
   if(gained > 0){ scores[me] = (scores[me]||0) + gained; entered[me] = true; }
 
   let finalRound = g.finalRound, triggeredBy = g.triggeredBy;
-  if(!finalRound && scores[me] >= room.meta.target){ finalRound = true; triggeredBy = g.turn; }
+  if(!finalRound && scores[me] >= TARGET){ finalRound = true; triggeredBy = g.turn; }
 
   const next = (g.turn + 1) % g.order.length;
   const over = finalRound && next === triggeredBy;
@@ -846,7 +772,7 @@ function advance(gained){
 }
 
 function skipTurn(){
-  const g = room.game;
+  const g = table.game;
   if(!g || g.over || Date.now() - g.stamp < IDLE_SKIP_MS) return;
   const next = (g.turn + 1) % g.order.length;
   const over = g.finalRound && next === g.triggeredBy;
@@ -861,6 +787,12 @@ function skipTurn(){
     points: 0, live: 6, rolled: false, zonk: false, zonkText: "",
     over, winner, stamp: Date.now()
   }));
+}
+
+function abandonGame(){
+  const g = table.game;
+  if(!g || Date.now() - g.stamp < ABANDON_MS) return;
+  remove(gameRef()).catch(()=>{});
 }
 
 /* ---------- endgame + archive ---------- */
@@ -893,7 +825,7 @@ function renderWin(g){
 }
 
 async function postQuote(text){
-  const g = room.game;
+  const g = table.game;
   const quote = (text || "").trim().slice(0,140);
   await saveToHall(Object.assign({}, g, { quote }));
   await update(gameRef(), { quote, stamp: Date.now() });
@@ -905,7 +837,6 @@ async function saveToHall(g){
   try{
     await push(ref(db, "archive"), {
       finishedAt: Date.now(),
-      room: roomCode,
       winner: (g.names[g.winner] || "Unknown").slice(0,40),
       quote: (g.quote || "").slice(0,140),
       scores: g.order.slice()
@@ -914,13 +845,14 @@ async function saveToHall(g){
     });
   }catch(e){
     archived = false;
-    $("winQuote").textContent = "Saved locally, but the hall of fame write failed. Check your database rules.";
+    $("winQuote").textContent = "The hall of fame write failed. Check your database rules.";
   }
 }
 
-function finishUp(){
-  if(amHost() && roomCode) remove(ref(db, "rooms/"+roomCode)).catch(()=>{});
-  leaveRoom();
+function backToTable(){
+  archived = false;
+  veil("veilWin", false);
+  remove(gameRef()).catch(()=>{});
 }
 
 /* ---------- hall of fame ---------- */
@@ -956,32 +888,25 @@ async function openHall(){
 }
 
 /* ---------- wiring ---------- */
-$("btnHost").onclick = hostRoom;
-$("btnJoin").onclick = joinRoom;
+$("btnSit").onclick = sitDown;
 $("btnStart").onclick = startGame;
-$("btnLeave").onclick = leaveRoom;
+$("btnLeave").onclick = leaveTable;
 $("btnAlerts").onclick = enableAlerts;
 $("btnSkip").onclick = skipTurn;
+$("btnAbandon").onclick = abandonGame;
 $("btnQuote").onclick = () => postQuote($("quoteInput").value);
 $("btnSkipQuote").onclick = () => postQuote("");
-$("btnDone").onclick = finishUp;
+$("btnDone").onclick = backToTable;
 $("openRules1").onclick = () => veil("veilRules", true);
 $("openRules2").onclick = () => veil("veilRules", true);
 $("closeRules").onclick = () => veil("veilRules", false);
 $("openHall1").onclick = openHall;
 $("closeHall").onclick = () => veil("veilHall", false);
-$("joinCode").addEventListener("input", e => {
-  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-});
 $("myName").addEventListener("change", () => store.set("zonk.name", myName()));
+$("myName").addEventListener("keydown", e => { if(e.key === "Enter") sitDown(); });
 
-/* rejoin after a refresh or a dropped connection */
-const saved = store.get("zonk.room");
-if(configured && saved && store.get("zonk.name")){
-  get(ref(db, "rooms/"+saved+"/players/"+myId)).then(s => {
-    if(s.exists()) enterRoom(saved); else store.del("zonk.room");
-  }).catch(() => {});
-}
+/* come straight back after a refresh or a dropped connection */
+if(configured && store.get("zonk.seated") && store.get("zonk.name")) sitDown();
 </script>
 </body>
 </html>

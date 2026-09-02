@@ -3,12 +3,9 @@
     ".read": false,
     ".write": false,
 
-    "rooms": {
-      "$code": {
-        ".read": true,
-        ".write": true,
-        ".validate": "$code.length == 4"
-      }
+    "table": {
+      ".read": true,
+      ".write": true
     },
 
     "archive": {
@@ -18,7 +15,6 @@
         ".write": "!data.exists() && newData.hasChildren(['finishedAt','winner','scores'])",
         "winner":     { ".validate": "newData.isString() && newData.val().length <= 40" },
         "quote":      { ".validate": "newData.isString() && newData.val().length <= 140" },
-        "room":       { ".validate": "newData.isString() && newData.val().length <= 8" },
         "finishedAt": { ".validate": "newData.isNumber()" },
         "scores": {
           "$i": {
