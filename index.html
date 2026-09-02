@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2A211C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Zonk">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Zonk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --table:#2A211C; --felt:#3A2E27; --edge:#4E3F35;
+  --brass:#D4A24C; --cream:#F2EDE4;
+  --dice-red:#C4342B; --dice-green:#2E7D4F; --dice-white:#F2EDE4;
+  --ink:#241C17; --muted:#B4A497; --danger:#E2574C; --live:#7FBF8A;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;background:var(--table);
+  background-image:radial-gradient(ellipse at 50% 0%, #3B2E26 0%, #2A211C 62%);
+  color:var(--cream);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.45;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;
+}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+h1,h2{font-family:var(--display);font-weight:800;margin:0;letter-spacing:-.02em}
+
+.screen{display:none;min-height:100dvh;flex-direction:column}
+.screen.on{display:flex}
+.pad{padding:max(24px,env(safe-area-inset-top)) 20px 28px;gap:20px;max-width:520px;margin:0 auto;width:100%}
+
+.brand{font-family:var(--display);font-weight:800;font-size:clamp(50px,16vw,84px);line-height:.86;letter-spacing:-.045em}
+.brand i{font-style:normal}
+.brand i:nth-child(1){color:var(--dice-red)}
+.brand i:nth-child(2){color:var(--dice-white)}
+.brand i:nth-child(3){color:var(--dice-green)}
+.brand i:nth-child(4){color:var(--brass)}
+.tagline{color:var(--muted);max-width:34ch;margin-top:8px}
+
+label{display:block;font-family:var(--display);font-weight:700;font-size:17px;margin-bottom:7px}
+input[type=text]{
+  width:100%;padding:14px;border-radius:10px;background:var(--felt);
+  border:1px solid var(--edge);color:var(--cream);font-size:16px;font-family:inherit;
+}
+input[type=text]:focus{outline:none;border-color:var(--brass)}
+input.code{font-family:var(--display);font-weight:800;font-size:30px;text-align:center;letter-spacing:.18em;text-transform:uppercase}
+::placeholder{color:#7E6E62}
+
+.big-btn{width:100%;padding:17px;border-radius:12px;background:var(--brass);color:var(--ink);
+  font-family:var(--display);font-weight:800;font-size:20px}
+.big-btn.quiet{background:var(--felt);color:var(--cream);border:1px solid var(--edge)}
+.big-btn:disabled{background:var(--edge);color:#8A7A6D}
+.ghost{padding:12px;color:var(--muted);font-size:14px;text-decoration:underline;text-underline-offset:4px}
+.err{color:var(--danger);font-size:14px;min-height:20px}
+
+.roomcode{font-family:var(--display);font-weight:800;font-size:clamp(46px,15vw,72px);letter-spacing:.14em;color:var(--brass);text-align:center;line-height:1}
+.roomhint{text-align:center;color:var(--muted);font-size:14px}
+.plist{display:flex;flex-direction:column;gap:7px}
+.prow{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--felt);border:1px solid var(--edge);border-radius:10px}
+.prow .dot{width:9px;height:9px;border-radius:50%;background:var(--live);flex:none}
+.prow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .tag{color:var(--brass);font-size:12px}
+.opts{display:flex;flex-direction:column;gap:13px;border-top:1px solid var(--edge);padding-top:16px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.opt small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.pick{display:flex;background:var(--felt);border:1px solid var(--edge);border-radius:10px;overflow:hidden;flex:none}
+.pick button{padding:9px 12px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pick button[aria-pressed=true]{background:var(--brass);color:var(--ink);font-weight:700}
+
+#game{padding:max(8px,env(safe-area-inset-top)) 14px 0}
+.standings{display:flex;gap:6px;overflow-x:auto;padding-bottom:9px;scrollbar-width:none}
+.standings::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:7px 11px;border-radius:9px;background:var(--felt);border:1px solid var(--edge);min-width:74px}
+.chip.active{border-color:var(--brass);background:#4A3A2A}
+.chip.me{box-shadow:inset 0 0 0 1px var(--muted)}
+.chip .who{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:10ch}
+.chip.active .who{color:var(--brass)}
+.chip .pts{font-family:var(--display);font-weight:700;font-size:19px;font-variant-numeric:tabular-nums}
+
+.turnbar{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:12px 2px 4px}
+.turnbar .label{color:var(--muted);font-size:14px}
+.turnbar .label b{color:var(--cream);font-weight:600}
+.tally{font-family:var(--display);font-weight:800;font-size:42px;line-height:1;color:var(--brass);font-variant-numeric:tabular-nums}
+.tally.pop{animation:pop .35s ease}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.15)}100%{transform:scale(1)}}
+.hint{min-height:22px;color:var(--muted);font-size:14px;padding:0 2px 6px}
+.hint.warn{color:var(--danger)}
+.hint.good{color:var(--brass)}
+
+.tray{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;
+  background:var(--felt);border:1px solid var(--edge);border-radius:16px;
+  padding:18px 12px;margin-bottom:10px;min-height:40vh}
+.row{display:flex;justify-content:center;gap:11px;flex-wrap:wrap}
+.kept-row{padding-top:12px;border-top:1px dashed var(--edge);min-height:56px;align-items:center}
+.kept-note{color:#7E6E62;font-size:13px;text-align:center;width:100%}
+
+.die{width:62px;height:62px;border-radius:13px;flex:none;position:relative;
+  display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:3px;padding:9px;
+  box-shadow:0 4px 0 rgba(0,0,0,.32), inset 0 -3px 6px rgba(0,0,0,.18);
+  transition:transform .16s ease, box-shadow .16s ease}
+.die.red{background:var(--dice-red)}
+.die.white{background:var(--dice-white)}
+.die.green{background:var(--dice-green)}
+.die .pip{border-radius:50%;background:var(--cream);align-self:center;justify-self:center;width:11px;height:11px}
+.die.white .pip{background:var(--ink)}
+.die.sel{transform:translateY(-9px);box-shadow:0 12px 0 rgba(0,0,0,.28),0 0 0 3px var(--brass), inset 0 -3px 6px rgba(0,0,0,.18)}
+.die.kept{width:42px;height:42px;border-radius:10px;padding:6px;gap:2px;opacity:.9;box-shadow:0 2px 0 rgba(0,0,0,.3)}
+.die.kept .pip{width:7px;height:7px}
+.die.tumble{animation:tumble .5s cubic-bezier(.3,1.4,.5,1)}
+@keyframes tumble{0%{transform:translateY(-26px) rotate(-38deg) scale(.86)}
+  60%{transform:translateY(0) rotate(6deg) scale(1.03)}100%{transform:none}}
+
+.actions{display:flex;gap:10px;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.act{flex:1;padding:17px 10px;border-radius:12px;font-family:var(--display);font-weight:700;
+  font-size:18px;background:var(--felt);border:1px solid var(--edge)}
+.act.primary{background:var(--brass);color:var(--ink);border-color:var(--brass);font-weight:800}
+.act:disabled{opacity:.36}
+.watching{text-align:center;padding:17px 10px;color:var(--muted);font-size:15px;
+  background:var(--felt);border:1px solid var(--edge);border-radius:12px;flex:1}
+.skipbtn{display:none;width:100%;padding:11px;color:var(--muted);font-size:13px;
+  text-decoration:underline;text-underline-offset:4px}
+.skipbtn.on{display:block}
+
+.veil{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:15px;padding:30px 24px;text-align:center;
+  background:rgba(28,21,17,.97);backdrop-filter:blur(3px)}
+.veil.on{display:flex}
+.veil h2{font-size:clamp(36px,11vw,58px);line-height:1}
+.veil p{color:var(--muted);max-width:33ch;margin:0}
+.veil .big-btn{max-width:340px}
+.veil input[type=text]{max-width:340px}
+.zonk-word{color:var(--danger)}
+.win-word{color:var(--brass)}
+.finaltable{display:flex;flex-direction:column;gap:5px;width:100%;max-width:340px}
+.finalrow{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;
+  background:var(--felt);border-radius:8px;font-size:15px}
+.finalrow.top{background:#4A3A2A;color:var(--brass);font-weight:700}
+.finalrow span:last-child{font-variant-numeric:tabular-nums}
+.quotebox{font-family:var(--display);font-weight:700;font-size:19px;color:var(--cream);
+  max-width:34ch;line-height:1.3;-webkit-user-select:text;user-select:text}
+
+.scroll-veil{align-items:stretch;justify-content:flex-start;text-align:left;overflow-y:auto;
+  -webkit-overflow-scrolling:touch}
+.doc{max-width:520px;margin:0 auto;padding:max(22px,env(safe-area-inset-top)) 4px 30px;
+  -webkit-user-select:text;user-select:text;width:100%}
+.doc h2{margin-bottom:12px}
+.doc h3{font-family:var(--display);font-weight:700;font-size:17px;margin:20px 0 6px;color:var(--brass)}
+.doc p,.doc li{color:#DCD2C7;font-size:15px}
+.doc ul{padding-left:20px;margin:6px 0}
+.doc li{margin:4px 0}
+.doc dl{display:grid;grid-template-columns:1fr auto;gap:5px 14px;margin:8px 0}
+.doc dt{color:#DCD2C7;font-size:15px}
+.doc dd{margin:0;font-variant-numeric:tabular-nums;color:var(--brass);font-weight:600;text-align:right}
+.entry{background:var(--felt);border:1px solid var(--edge);border-radius:11px;padding:13px 15px;margin-bottom:9px}
+.entry .top-line{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.entry .champ{font-family:var(--display);font-weight:700;font-size:18px;color:var(--brass)}
+.entry .when{color:#8A7A6D;font-size:12px;white-space:nowrap}
+.entry .q{margin:7px 0;font-size:15px;color:var(--cream);font-style:italic}
+.entry .line{color:var(--muted);font-size:13px}
+.banner{background:#4A2A26;border:1px solid #7A3A33;color:#F0D0CC;padding:12px 14px;
+  border-radius:10px;font-size:14px;line-height:1.4}
+
+@media (max-height:680px){.die{width:54px;height:54px}.tally{font-size:35px}.tray{min-height:35vh}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<section id="home" class="screen on pad">
+  <div>
+    <h1 class="brand"><i>Z</i><i>O</i><i>N</i><i>K</i></h1>
+    <p class="tagline">Six dice, up to eight phones, anywhere in the country.</p>
+  </div>
+  <div id="configWarn" class="banner" style="display:none">
+    Firebase isn't configured yet. Open <b>index.html</b>, find the FIREBASE CONFIG block near the
+    top of the script, and paste in the config from your Firebase console.
+  </div>
+  <div>
+    <label for="myName">Your name</label>
+    <input type="text" id="myName" maxlength="14" placeholder="How you'll show up" autocomplete="nickname">
+  </div>
+  <div>
+    <label for="joinCode">Room code</label>
+    <input type="text" id="joinCode" class="code" maxlength="4" placeholder="- - - -"
+           autocomplete="off" autocapitalize="characters" inputmode="text" spellcheck="false">
+  </div>
+  <div class="err" id="homeErr"></div>
+  <button class="big-btn" id="btnJoin">Join room</button>
+  <button class="big-btn quiet" id="btnHost">Start a new room</button>
+  <div style="display:flex;justify-content:center;gap:6px">
+    <button class="ghost" id="openRules1">Rules</button>
+    <button class="ghost" id="openHall1">Hall of fame</button>
+  </div>
+</section>
+
+<section id="lobby" class="screen pad">
+  <div>
+    <div class="roomcode" id="lobbyCode">----</div>
+    <div class="roomhint">Everyone types this code on their own phone</div>
+  </div>
+  <div class="plist" id="lobbyList"></div>
+  <button class="big-btn quiet" id="btnAlerts">Turn on turn alerts</button>
+  <div class="opts" id="hostOpts">
+    <div class="opt">
+      <div>Play to<small>First past it triggers a final round.</small></div>
+      <div class="pick" id="pickTarget"></div>
+    </div>
+    <div class="opt">
+      <div>Hot dice<small>All six score - pick them up and keep going.</small></div>
+      <div class="pick" id="pickHot"></div>
+    </div>
+  </div>
+  <div class="err" id="lobbyErr"></div>
+  <button class="big-btn" id="btnStart">Start game</button>
+  <div style="display:flex;justify-content:center;gap:6px">
+    <button class="ghost" id="openRules2">Rules</button>
+    <button class="ghost" id="btnLeave">Leave room</button>
+  </div>
+</section>
+
+<section id="game" class="screen">
+  <div class="standings" id="standings"></div>
+  <div class="turnbar">
+    <div class="label"><b id="whoNow">-</b> <span id="phase"></span></div>
+    <div class="tally" id="tally">0</div>
+  </div>
+  <div class="hint" id="hint"></div>
+  <div class="tray">
+    <div class="row" id="trayRow"></div>
+    <div class="row kept-row" id="keptRow"></div>
+  </div>
+  <div class="actions" id="actions"></div>
+  <button class="skipbtn" id="btnSkip">This player seems stuck - skip their turn</button>
+</section>
+
+<div class="veil" id="veilZonk">
+  <h2 class="zonk-word">ZONK</h2>
+  <p id="zonkText"></p>
+</div>
+
+<div class="veil" id="veilWin">
+  <p id="winLead">Winner</p>
+  <h2 class="win-word" id="winName">-</h2>
+  <div class="quotebox" id="winQuote"></div>
+  <div class="finaltable" id="finalTable"></div>
+  <input type="text" id="quoteInput" maxlength="140" placeholder="Say something for the record">
+  <button class="big-btn" id="btnQuote">Post it</button>
+  <button class="ghost" id="btnSkipQuote">Skip</button>
+  <button class="big-btn quiet" id="btnDone" style="max-width:340px">Back to start</button>
+</div>
+
+<div class="veil scroll-veil" id="veilRules">
+  <div class="doc">
+    <h2>How Zonk works</h2>
+    <p>Roll six dice. Set aside at least one scoring die, then choose: bank what you've got, or roll what's left and risk it all.</p>
+    <h3>Scoring</h3>
+    <dl>
+      <dt>Each 1</dt><dd>100</dd><dt>Each 5</dt><dd>50</dd>
+      <dt>Three of a kind</dt><dd>100 x face</dd><dt>Three 1s</dt><dd>1000</dd>
+      <dt>Four of a kind</dt><dd>double</dd><dt>Five of a kind</dt><dd>quadruple</dd>
+      <dt>Six of a kind</dt><dd>3000</dd><dt>Straight 1-6</dt><dd>1500</dd>
+      <dt>Three pairs</dt><dd>1500</dd>
+    </dl>
+    <h3>Your turn</h3>
+    <ul>
+      <li>Every roll, keep at least one scoring die. Dice that don't score can't be kept.</li>
+      <li>Bank once you have 300 in the turn, or 500 if you haven't scored yet this game. Setting aside four or five dice also unlocks banking.</li>
+      <li>A roll with nothing scoring is a zonk: turn over, turn points gone.</li>
+      <li>All six dice set aside means hot dice - they come back and you roll again.</li>
+    </ul>
+    <h3>Winning</h3>
+    <p>Reach the target and everyone else gets one last turn. Highest total wins, and gets to write a line for the hall of fame.</p>
+    <h3>Odds of zonking</h3>
+    <ul><li>Six dice - about 2%</li><li>Three dice - about 28%</li>
+      <li>Two dice - about 44%</li><li>One die - about 66%</li></ul>
+  </div>
+  <button class="big-btn" id="closeRules" style="max-width:520px;margin:0 auto 34px">Close</button>
+</div>
+
+<div class="veil scroll-veil" id="veilHall">
+  <div class="doc">
+    <h2>Hall of fame</h2>
+    <div id="hallList"><p>Loading...</p></div>
+  </div>
+  <button class="big-btn" id="closeHall" style="max-width:520px;margin:0 auto 34px">Close</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, update, remove, onValue, push,
+         onDisconnect, query, orderByChild, limitToLast }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+/* ===============================================================
+   FIREBASE CONFIG - paste yours here. Firebase console ->
+   Project settings -> Your apps -> Web app -> SDK setup.
+   Keep databaseURL; that is the Realtime Database, not Firestore.
+   =============================================================== */
+const firebaseConfig = {
+  apiKey:            "AIzaSyDwtJStc25il_4nEI0_vpSKGu5nomw3iUQ",
+  authDomain: "zonk-255c6.firebaseapp.com",
+  databaseURL: "https://zonk-255c6-default-rtdb.firebaseio.com",
+  projectId: "zonk-255c6",
+  storageBucket: "zonk-255c6.firebasestorage.app",
+  messagingSenderId: "1097565311165",
+  appId: "1:1097565311165:web:28f2665ad72c7c5738e7d4"
+};
+
+/* ================= nothing below needs editing ================= */
+
+const MAX_PLAYERS = 8;
+const IDLE_SKIP_MS = 60000;
+const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+const COLORS = ["red","red","white","white","green","green"];
+const $ = id => document.getElementById(id);
+
+const configured = !firebaseConfig.apiKey.startsWith("PASTE");
+let db = null;
+if(configured) db = getDatabase(initializeApp(firebaseConfig));
+else $("configWarn").style.display = "block";
+
+const mem = {};
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k] ?? null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){ mem[k]=v; } },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
+};
+const show = id => ["home","lobby","game"].forEach(s => $(s).classList.toggle("on", s===id));
+const veil = (id,on) => $(id).classList.toggle("on", !!on);
+
+/* ---------- scoring ---------- */
+function counts(d){ const c=[0,0,0,0,0,0,0]; d.forEach(x=>c[x]++); return c; }
+
+function scoreSet(dice){
+  if(!dice.length) return null;
+  const c = counts(dice);
+  let best = null;
+  const better = v => { if(best===null || v>best) best = v; };
+  if(dice.length === 6){
+    if([1,2,3,4,5,6].every(f => c[f]===1)) better(1500);
+    let pairs=0, clean=true;
+    for(let f=1;f<=6;f++){ if(c[f]===2) pairs++; else if(c[f]!==0) clean=false; }
+    if(clean && pairs===3) better(1500);
+  }
+  let sum=0, whole=true;
+  for(let f=1;f<=6;f++){
+    const n=c[f]; if(!n) continue;
+    const base = f===1 ? 1000 : f*100;
+    if(n===6) sum+=3000;
+    else if(n===5) sum+=base*4;
+    else if(n===4) sum+=base*2;
+    else if(n===3) sum+=base;
+    else if(f===1) sum+=100*n;
+    else if(f===5) sum+=50*n;
+    else whole=false;
+  }
+  if(whole) better(sum);
+  return best;
+}
+
+function anyScore(dice){
+  const c = counts(dice);
+  if(c[1] || c[5]) return true;
+  for(let f=1;f<=6;f++) if(c[f]>=3) return true;
+  if(dice.length === 6){
+    let pairs=0, clean=true;
+    for(let f=1;f<=6;f++){ if(c[f]===2) pairs++; else if(c[f]!==0) clean=false; }
+    if(clean && pairs===3) return true;
+  }
+  return false;
+}
+
+/* ---------- alerts ---------- */
+let audioCtx = null, wakeLock = null;
+
+function primeAudio(){
+  if(audioCtx) return;
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === "suspended") audioCtx.resume();
+  }catch(e){ audioCtx = null; }
+}
+document.addEventListener("pointerdown", primeAudio, {once:true});
+
+function chime(){
+  if(!audioCtx) return;
+  try{
+    if(audioCtx.state === "suspended") audioCtx.resume();
+    [880,1320].forEach((hz,i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "triangle"; o.frequency.value = hz;
+      const t = audioCtx.currentTime + i*0.16;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.26, t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+0.34);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t+0.36);
+    });
+  }catch(e){}
+}
+
+async function keepAwake(){
+  try{
+    if("wakeLock" in navigator && !wakeLock){
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  }catch(e){}
+}
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible") keepAwake();
+});
+
+async function enableAlerts(){
+  primeAudio(); chime();
+  try{
+    if("Notification" in window && Notification.permission === "default")
+      await Notification.requestPermission();
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate(40); }catch(e){}
+  await keepAwake();
+  const ok = ("Notification" in window) && Notification.permission === "granted";
+  $("btnAlerts").textContent = ok ? "Turn alerts are on" : "Alerts on (sound only)";
+  $("btnAlerts").disabled = true;
+}
+
+function alertMyTurn(){
+  try{ if(navigator.vibrate) navigator.vibrate([140,90,140,90,220]); }catch(e){}
+  chime();
+  try{
+    if("Notification" in window && Notification.permission === "granted"){
+      const n = new Notification("Your turn in Zonk", {
+        body: "Six dice are waiting.", tag: "zonk-turn", renotify: true });
+      n.onclick = () => { window.focus(); n.close(); };
+    }
+  }catch(e){}
+}
+
+/* ---------- identity ---------- */
+let myId = store.get("zonk.id");
+if(!myId){
+  myId = "p" + Math.random().toString(36).slice(2,10);
+  store.set("zonk.id", myId);
+}
+$("myName").value = store.get("zonk.name") || "";
+
+let roomCode = null, roomRef = null, unsub = null, room = null;
+let mySel = new Set();
+let lastFaces = "", wasMyTurn = false, idleTimer = null, archived = false;
+let optTarget = 10000, optHot = true;
+
+/* ---------- option pickers ---------- */
+function pickGroup(el, opts, cur, cb){
+  el.innerHTML = "";
+  opts.forEach(o => {
+    const b = document.createElement("button");
+    b.textContent = o.label;
+    b.setAttribute("aria-pressed", String(o.value === cur));
+    b.onclick = () => cb(o.value);
+    el.append(b);
+  });
+}
+function drawOpts(){
+  pickGroup($("pickTarget"),
+    [{label:"5,000",value:5000},{label:"10,000",value:10000},{label:"15,000",value:15000}],
+    optTarget, v => { optTarget = v; drawOpts(); pushMeta(); });
+  pickGroup($("pickHot"),
+    [{label:"Must roll",value:true},{label:"May bank",value:false}],
+    optHot, v => { optHot = v; drawOpts(); pushMeta(); });
+}
+drawOpts();
+
+const amHost = () => !!(room && room.meta && room.meta.host === myId);
+function pushMeta(){
+  if(!amHost() || !roomCode) return;
+  update(ref(db, "rooms/"+roomCode+"/meta"), { target: optTarget, hotForced: optHot });
+}
+
+/* ---------- create / join ---------- */
+const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const newCode = () => Array.from({length:4},
+  () => CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)]).join("");
+
+const myName = () => $("myName").value.trim().slice(0,14);
+function fail(el,msg){ $(el).textContent = msg; return false; }
+
+function guard(){
+  if(!configured) return fail("homeErr","Add your Firebase config to index.html first.");
+  if(!myName()) return fail("homeErr","Put your name in first.");
+  store.set("zonk.name", myName());
+  $("homeErr").textContent = "";
+  return true;
+}
+
+async function hostRoom(){
+  if(!guard()) return;
+  let code;
+  for(let i=0;i<8;i++){
+    code = newCode();
+    const s = await get(ref(db, "rooms/"+code+"/meta"));
+    if(!s.exists()) break;
+  }
+  await set(ref(db, "rooms/"+code), {
+    meta: { host: myId, status: "lobby", target: optTarget,
+            hotForced: optHot, created: Date.now() },
+    players: { [myId]: { name: myName(), joined: Date.now() } }
+  });
+  enterRoom(code);
+}
+
+async function joinRoom(){
+  if(!guard()) return;
+  const code = $("joinCode").value.trim().toUpperCase();
+  if(code.length !== 4) return fail("homeErr","Room codes are four characters.");
+  const snap = await get(ref(db, "rooms/"+code));
+  if(!snap.exists()) return fail("homeErr","No room with that code. Check it and try again.");
+  const data = snap.val(), players = data.players || {};
+  const already = !!players[myId];
+  if(!already && Object.keys(players).length >= MAX_PLAYERS)
+    return fail("homeErr","That room is full at eight players.");
+  if(!already && data.meta && data.meta.status !== "lobby")
+    return fail("homeErr","That game is already underway.");
+  await set(ref(db, "rooms/"+code+"/players/"+myId),
+            { name: myName(), joined: already ? players[myId].joined : Date.now() });
+  enterRoom(code);
+}
+
+function enterRoom(code){
+  roomCode = code;
+  store.set("zonk.room", code);
+  $("lobbyCode").textContent = code;
+  roomRef = ref(db, "rooms/"+code);
+  if(unsub) unsub();
+  unsub = onValue(roomRef, snap => {
+    if(!snap.exists()) return leaveRoom();
+    room = snap.val();
+    render();
+  });
+  show("lobby");
+}
+
+function leaveRoom(){
+  if(unsub){ unsub(); unsub = null; }
+  if(roomCode && room && room.meta && room.meta.status === "lobby" && !amHost())
+    remove(ref(db, "rooms/"+roomCode+"/players/"+myId)).catch(()=>{});
+  roomCode = null; room = null; roomRef = null;
+  store.del("zonk.room");
+  veil("veilWin", false); veil("veilZonk", false);
+  wasMyTurn = false; archived = false; mySel.clear();
+  show("home");
+}
+
+function startGame(){
+  if(!amHost()) return;
+  const players = room.players || {};
+  const order = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
+  if(order.length < 2) return fail("lobbyErr","You need at least two players.");
+  const names = {}, scores = {}, entered = {};
+  order.forEach(p => { names[p] = players[p].name || "Player"; scores[p] = 0; entered[p] = false; });
+  set(ref(db, "rooms/"+roomCode), {
+    meta: Object.assign({}, room.meta, { status:"playing", target:optTarget, hotForced:optHot }),
+    players,
+    game: { order, names, scores, entered, turn:0,
+      faces:[1,3,5,2,6,4], states:["tray","tray","tray","tray","tray","tray"],
+      points:0, live:6, rolled:false, zonk:false, zonkText:"",
+      finalRound:false, triggeredBy:null, over:false,
+      winner:null, quote:"", stamp: Date.now() }
+  });
+}
+
+/* ---------- rendering ---------- */
+function dieNode(i, face, state, small, interactive){
+  const el = document.createElement(interactive ? "button" : "div");
+  el.className = "die " + COLORS[i] + (small ? " kept" : "") + (state==="sel" ? " sel" : "");
+  for(let k=0;k<9;k++){
+    const cell = document.createElement("span");
+    if(PIPS[face].includes(k)) cell.className = "pip";
+    el.append(cell);
+  }
+  if(interactive){
+    el.setAttribute("aria-pressed", String(state==="sel"));
+    el.setAttribute("aria-label", "Die showing " + face + (state==="sel" ? ", set aside" : ""));
+    el.onclick = () => {
+      if(mySel.has(i)) mySel.delete(i); else mySel.add(i);
+      try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}
+      render();
+    };
+  }
+  return el;
+}
+
+function render(){
+  if(!room) return;
+  if(!room.meta || room.meta.status === "lobby") renderLobby();
+  else renderGame();
+}
+
+function renderLobby(){
+  show("lobby");
+  optTarget = room.meta.target; optHot = room.meta.hotForced;
+  drawOpts();
+  const players = room.players || {};
+  const ids = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
+  const list = $("lobbyList"); list.innerHTML = "";
+  ids.forEach(id => {
+    const row = document.createElement("div");
+    row.className = "prow";
+    row.innerHTML = "<span class='dot'></span><span class='nm'></span><span class='tag'></span>";
+    row.querySelector(".nm").textContent = players[id].name || "Player";
+    const tags = [];
+    if(id === room.meta.host) tags.push("host");
+    if(id === myId) tags.push("you");
+    row.querySelector(".tag").textContent = tags.join(" / ");
+    list.append(row);
+  });
+  const host = amHost();
+  $("hostOpts").style.display = host ? "" : "none";
+  $("btnStart").style.display = host ? "" : "none";
+  $("lobbyErr").textContent = host
+    ? (ids.length < 2 ? "Waiting for at least one more player." : "")
+    : "Waiting for the host to start.";
+}
+
+function renderGame(){
+  const g = room.game;
+  if(!g) return;
+  show("game");
+  const active = g.order[g.turn];
+  const myTurn = active === myId && !g.over;
+
+  const s = $("standings"); s.innerHTML = "";
+  g.order.forEach(pid => {
+    const c = document.createElement("div");
+    c.className = "chip" + (pid===active && !g.over ? " active":"") + (pid===myId ? " me":"");
+    c.innerHTML = "<div class='who'></div><div class='pts'></div>";
+    c.querySelector(".who").textContent = g.names[pid] + (pid===myId ? " (you)" : "");
+    c.querySelector(".pts").textContent = (g.scores[pid]||0).toLocaleString();
+    s.append(c);
+  });
+
+  $("whoNow").textContent = g.over ? "Game over"
+    : (myTurn ? "Your turn" : g.names[active] + "'s turn");
+  $("phase").textContent = (g.finalRound && !g.over) ? "/ final round" : "";
+
+  const faces = g.faces, states = g.states.slice();
+  if(myTurn && g.rolled && !g.zonk)
+    mySel.forEach(i => { if(states[i]==="tray") states[i] = "sel"; });
+
+  const selIdx = states.map((st,i) => st==="sel" ? i : -1).filter(i => i>=0);
+  const selFaces = selIdx.map(i => faces[i]);
+  const selScore = selFaces.length ? scoreSet(selFaces) : 0;
+  const running = g.points + (selScore || 0);
+
+  const t = $("tally"), txt = running.toLocaleString();
+  if(t.textContent !== txt){
+    t.textContent = txt;
+    t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop");
+  }
+
+  const tray = $("trayRow"), kept = $("keptRow");
+  tray.innerHTML = ""; kept.innerHTML = "";
+  states.forEach((st,i) => {
+    if(st === "kept") return;
+    tray.append(dieNode(i, faces[i], st, false, myTurn && g.rolled && !g.zonk));
+  });
+  const keptIdx = states.map((st,i) => st==="kept" ? i : -1).filter(i => i>=0);
+  if(keptIdx.length) keptIdx.forEach(i => kept.append(dieNode(i, faces[i], "kept", true, false)));
+  else {
+    const n = document.createElement("div");
+    n.className = "kept-note";
+    n.textContent = g.rolled ? (myTurn ? "Tap the dice you want to keep" : "") : "";
+    kept.append(n);
+  }
+
+  drawActions(g, myTurn, selFaces, selScore, running);
+
+  const key = faces.join("") + "-" + g.stamp;
+  if(key !== lastFaces && g.rolled){
+    lastFaces = key;
+    tray.querySelectorAll(".die").forEach((el,i) => {
+      el.classList.remove("tumble"); void el.offsetWidth;
+      el.style.animationDelay = (i*40) + "ms";
+      el.classList.add("tumble");
+    });
+  }
+
+  if(myTurn && !wasMyTurn && !g.over) alertMyTurn();
+  wasMyTurn = myTurn;
+
+  veil("veilZonk", !!g.zonk);
+  if(g.zonk) $("zonkText").textContent = g.zonkText || "";
+
+  if(g.over) renderWin(g); else veil("veilWin", false);
+
+  clearTimeout(idleTimer);
+  $("btnSkip").classList.remove("on");
+  if(!g.over && !myTurn){
+    const wait = Math.max(2000, IDLE_SKIP_MS - (Date.now() - g.stamp));
+    idleTimer = setTimeout(() => $("btnSkip").classList.add("on"), wait);
+  }
+}
+
+const bankFloor = g => g.entered[g.order[g.turn]] ? 300 : 500;
+
+function drawActions(g, myTurn, selFaces, selScore, running){
+  const box = $("actions"), hint = $("hint");
+  hint.className = "hint";
+  box.innerHTML = "";
+
+  if(g.over){ hint.textContent = ""; return; }
+
+  if(!myTurn){
+    const w = document.createElement("div");
+    w.className = "watching";
+    w.textContent = "Watching " + g.names[g.order[g.turn]];
+    box.append(w);
+    hint.textContent = g.points ? "On the table: " + g.points.toLocaleString() : "";
+    return;
+  }
+
+  const bank = document.createElement("button"); bank.className = "act";
+  const roll = document.createElement("button"); roll.className = "act primary";
+  bank.onclick = doBank; roll.onclick = doRoll;
+  box.append(bank, roll);
+
+  if(!g.rolled){
+    roll.textContent = "Roll " + g.live + " dice";
+    bank.textContent = "Bank"; bank.disabled = true;
+    hint.textContent = g.points ? "Held this turn: " + g.points.toLocaleString() : "";
+    return;
+  }
+
+  const valid = selFaces.length > 0 && selScore !== null;
+  const keptCount = g.states.filter(x => x==="kept").length;
+  const setAside = selFaces.length + keptCount;
+  const left = g.live - selFaces.length;
+  const forcedHot = room.meta.hotForced && valid && left === 0;
+  const canBank = valid && !forcedHot &&
+    (running >= bankFloor(g) || setAside === 4 || setAside === 5);
+
+  roll.disabled = !valid;
+  bank.disabled = !canBank;
+  roll.textContent = left === 0 ? "Keep all six" : "Keep & roll " + left;
+  bank.textContent = "Bank " + (valid ? running.toLocaleString() : "");
+
+  if(!selFaces.length) hint.textContent = "Keep at least one scoring die.";
+  else if(selScore === null){
+    hint.className = "hint warn";
+    hint.textContent = "One of those doesn't score on its own.";
+  } else if(forcedHot){
+    hint.className = "hint good";
+    hint.textContent = "All six score - hot dice, you have to roll again.";
+  } else if(!canBank){
+    hint.textContent = "Need " + bankFloor(g).toLocaleString() + " to bank.";
+  } else {
+    hint.className = "hint good";
+    hint.textContent = left === 0 ? "Six for six - hot dice if you roll."
+                                  : "Good to bank or push on.";
+  }
+}
+
+/* ---------- actions: only the active player writes ---------- */
+const gameRef = () => ref(db, "rooms/"+roomCode+"/game");
+
+function commitSelection(g){
+  const sel = [...mySel].filter(i => g.states[i] === "tray");
+  if(!sel.length) return null;
+  const sc = scoreSet(sel.map(i => g.faces[i]));
+  if(sc === null) return null;
+  const states = g.states.slice();
+  sel.forEach(i => states[i] = "kept");
+  return { states, gained: sc, used: sel.length };
+}
+
+function doRoll(){
+  const g = room.game;
+  let states = g.states.slice(), points = g.points, live = g.live;
+  if(mySel.size){
+    const c = commitSelection(g);
+    if(!c) return;
+    states = c.states; points += c.gained; live -= c.used;
+  }
+  if(live === 0){ states = states.map(() => "tray"); live = 6; }
+  const faces = g.faces.slice();
+  states.forEach((st,i) => { if(st !== "kept") faces[i] = 1 + Math.floor(Math.random()*6); });
+  mySel.clear();
+
+  const inPlay = states.map((st,i) => st!=="kept" ? faces[i] : 0).filter(Boolean);
+  const zonked = !anyScore(inPlay);
+
+  set(gameRef(), Object.assign({}, g, {
+    faces, states, points, live, rolled: true, zonk: zonked,
+    zonkText: zonked ? (points
+      ? g.names[myId] + " loses " + points.toLocaleString() + " from this turn."
+      : "Nothing scored. Nothing lost.") : "",
+    stamp: Date.now()
+  }));
+
+  if(zonked) setTimeout(() => advance(0), 2600);
+}
+
+function doBank(){
+  const g = room.game;
+  let points = g.points;
+  if(mySel.size){
+    const c = commitSelection(g);
+    if(!c) return;
+    points += c.gained;
+  }
+  mySel.clear();
+  advance(points);
+}
+
+function advance(gained){
+  const g = room.game;
+  const me = g.order[g.turn];
+  const scores = Object.assign({}, g.scores);
+  const entered = Object.assign({}, g.entered);
+  if(gained > 0){ scores[me] = (scores[me]||0) + gained; entered[me] = true; }
+
+  let finalRound = g.finalRound, triggeredBy = g.triggeredBy;
+  if(!finalRound && scores[me] >= room.meta.target){ finalRound = true; triggeredBy = g.turn; }
+
+  const next = (g.turn + 1) % g.order.length;
+  const over = finalRound && next === triggeredBy;
+  let winner = null;
+  if(over){
+    const best = Math.max.apply(null, g.order.map(p => scores[p]||0));
+    winner = g.order.find(p => (scores[p]||0) === best);
+  }
+
+  set(gameRef(), Object.assign({}, g, {
+    scores, entered, turn: over ? g.turn : next,
+    states: ["tray","tray","tray","tray","tray","tray"],
+    points: 0, live: 6, rolled: false, zonk: false, zonkText: "",
+    finalRound, triggeredBy, over, winner, stamp: Date.now()
+  }));
+}
+
+function skipTurn(){
+  const g = room.game;
+  if(!g || g.over || Date.now() - g.stamp < IDLE_SKIP_MS) return;
+  const next = (g.turn + 1) % g.order.length;
+  const over = g.finalRound && next === g.triggeredBy;
+  let winner = null;
+  if(over){
+    const best = Math.max.apply(null, g.order.map(p => g.scores[p]||0));
+    winner = g.order.find(p => (g.scores[p]||0) === best);
+  }
+  set(gameRef(), Object.assign({}, g, {
+    turn: over ? g.turn : next,
+    states: ["tray","tray","tray","tray","tray","tray"],
+    points: 0, live: 6, rolled: false, zonk: false, zonkText: "",
+    over, winner, stamp: Date.now()
+  }));
+}
+
+/* ---------- endgame + archive ---------- */
+function renderWin(g){
+  veil("veilWin", true);
+  const iWon = g.winner === myId;
+  const ranked = g.order.slice().sort((a,b) => (g.scores[b]||0) - (g.scores[a]||0));
+
+  $("winLead").textContent = iWon ? "You took it" : "Winner";
+  $("winName").textContent = g.names[g.winner] || "-";
+
+  const tbl = $("finalTable"); tbl.innerHTML = "";
+  ranked.forEach((pid,i) => {
+    const r = document.createElement("div");
+    r.className = "finalrow" + (i===0 ? " top" : "");
+    r.innerHTML = "<span></span><span></span>";
+    r.children[0].textContent = g.names[pid];
+    r.children[1].textContent = (g.scores[pid]||0).toLocaleString();
+    tbl.append(r);
+  });
+
+  const hasQuote = !!(g.quote && g.quote.trim());
+  const needQuote = iWon && !hasQuote;
+  $("winQuote").textContent = hasQuote ? '"' + g.quote + '"'
+    : (iWon ? "" : "Waiting on the victory line...");
+  $("quoteInput").style.display = needQuote ? "" : "none";
+  $("btnQuote").style.display = needQuote ? "" : "none";
+  $("btnSkipQuote").style.display = needQuote ? "" : "none";
+  $("btnDone").style.display = needQuote ? "none" : "";
+}
+
+async function postQuote(text){
+  const g = room.game;
+  const quote = (text || "").trim().slice(0,140);
+  await saveToHall(Object.assign({}, g, { quote }));
+  await update(gameRef(), { quote, stamp: Date.now() });
+}
+
+async function saveToHall(g){
+  if(archived) return;
+  archived = true;
+  try{
+    await push(ref(db, "archive"), {
+      finishedAt: Date.now(),
+      room: roomCode,
+      winner: (g.names[g.winner] || "Unknown").slice(0,40),
+      quote: (g.quote || "").slice(0,140),
+      scores: g.order.slice()
+        .sort((a,b) => (g.scores[b]||0) - (g.scores[a]||0))
+        .map(p => ({ name: (g.names[p]||"Player").slice(0,14), score: g.scores[p]||0 }))
+    });
+  }catch(e){
+    archived = false;
+    $("winQuote").textContent = "Saved locally, but the hall of fame write failed. Check your database rules.";
+  }
+}
+
+function finishUp(){
+  if(amHost() && roomCode) remove(ref(db, "rooms/"+roomCode)).catch(()=>{});
+  leaveRoom();
+}
+
+/* ---------- hall of fame ---------- */
+async function openHall(){
+  veil("veilHall", true);
+  const box = $("hallList");
+  if(!configured){ box.innerHTML = "<p>Configure Firebase to see past games.</p>"; return; }
+  box.innerHTML = "<p>Loading...</p>";
+  try{
+    const snap = await get(query(ref(db,"archive"), orderByChild("finishedAt"), limitToLast(30)));
+    if(!snap.exists()){ box.innerHTML = "<p>No games finished yet. Be the first.</p>"; return; }
+    const rows = [];
+    snap.forEach(ch => { rows.push(ch.val()); });
+    rows.reverse();
+    box.innerHTML = "";
+    rows.forEach(r => {
+      const d = document.createElement("div");
+      d.className = "entry";
+      d.innerHTML = "<div class='top-line'><span class='champ'></span><span class='when'></span></div>"
+                  + "<div class='q'></div><div class='line'></div>";
+      d.querySelector(".champ").textContent = r.winner;
+      d.querySelector(".when").textContent = new Date(r.finishedAt)
+        .toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+      const q = d.querySelector(".q");
+      if(r.quote) q.textContent = '"' + r.quote + '"'; else q.remove();
+      d.querySelector(".line").textContent = (r.scores||[])
+        .map(x => x.name + " " + x.score.toLocaleString()).join("   ");
+      box.append(d);
+    });
+  }catch(e){
+    box.innerHTML = "<p>Couldn't load the archive. Check your database rules.</p>";
+  }
+}
+
+/* ---------- wiring ---------- */
+$("btnHost").onclick = hostRoom;
+$("btnJoin").onclick = joinRoom;
+$("btnStart").onclick = startGame;
+$("btnLeave").onclick = leaveRoom;
+$("btnAlerts").onclick = enableAlerts;
+$("btnSkip").onclick = skipTurn;
+$("btnQuote").onclick = () => postQuote($("quoteInput").value);
+$("btnSkipQuote").onclick = () => postQuote("");
+$("btnDone").onclick = finishUp;
+$("openRules1").onclick = () => veil("veilRules", true);
+$("openRules2").onclick = () => veil("veilRules", true);
+$("closeRules").onclick = () => veil("veilRules", false);
+$("openHall1").onclick = openHall;
+$("closeHall").onclick = () => veil("veilHall", false);
+$("joinCode").addEventListener("input", e => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+});
+$("myName").addEventListener("change", () => store.set("zonk.name", myName()));
+
+/* rejoin after a refresh or a dropped connection */
+const saved = store.get("zonk.room");
+if(configured && saved && store.get("zonk.name")){
+  get(ref(db, "rooms/"+saved+"/players/"+myId)).then(s => {
+    if(s.exists()) enterRoom(saved); else store.del("zonk.room");
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>

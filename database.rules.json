@@ -1,0 +1,34 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "rooms": {
+      "$code": {
+        ".read": true,
+        ".write": true,
+        ".validate": "$code.length == 4"
+      }
+    },
+
+    "archive": {
+      ".read": true,
+      ".indexOn": "finishedAt",
+      "$entry": {
+        ".write": "!data.exists() && newData.hasChildren(['finishedAt','winner','scores'])",
+        "winner":     { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "quote":      { ".validate": "newData.isString() && newData.val().length <= 140" },
+        "room":       { ".validate": "newData.isString() && newData.val().length <= 8" },
+        "finishedAt": { ".validate": "newData.isNumber()" },
+        "scores": {
+          "$i": {
+            "name":  { ".validate": "newData.isString() && newData.val().length <= 14" },
+            "score": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+            "$other": { ".validate": false }
+          }
+        },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}

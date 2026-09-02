@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2A211C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Zonk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --table:#2A211C;
+  --felt:#3A2E27;
+  --edge:#4E3F35;
+  --brass:#D4A24C;
+  --brass-dim:#8A6C33;
+  --cream:#F2EDE4;
+  --dice-red:#C4342B;
+  --dice-green:#2E7D4F;
+  --dice-white:#F2EDE4;
+  --ink:#241C17;
+  --muted:#B4A497;
+  --danger:#E2574C;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--table);
+  background-image:radial-gradient(ellipse at 50% 0%, #3B2E26 0%, #2A211C 62%);
+  color:var(--cream);
+  font-family:var(--ui);
+  font-size:16px;
+  line-height:1.45;
+  overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;
+}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible{outline:2px solid var(--brass);outline-offset:3px;border-radius:4px}
+h1,h2{font-family:var(--display);font-weight:800;margin:0;letter-spacing:-.02em}
+
+.screen{display:none;min-height:100dvh;flex-direction:column}
+.screen.on{display:flex}
+
+/* ---------- setup ---------- */
+#setup{padding:max(28px,env(safe-area-inset-top)) 20px 32px;gap:22px;max-width:520px;margin:0 auto;width:100%}
+.brand{font-family:var(--display);font-weight:800;font-size:clamp(52px,17vw,88px);line-height:.86;letter-spacing:-.045em}
+.brand span:nth-child(1){color:var(--dice-red)}
+.brand span:nth-child(2){color:var(--dice-white)}
+.brand span:nth-child(3){color:var(--dice-green)}
+.brand span:nth-child(4){color:var(--brass)}
+.tagline{color:var(--muted);max-width:34ch;margin-top:10px}
+.field{display:flex;flex-direction:column;gap:8px}
+.field-title{font-family:var(--display);font-weight:700;font-size:19px}
+.roster{display:flex;flex-direction:column;gap:8px}
+.seat{display:flex;align-items:center;gap:10px}
+.seat-mark{width:12px;height:12px;border-radius:3px;flex:none}
+.seat input{
+  flex:1;min-width:0;padding:13px 14px;border-radius:10px;
+  background:var(--felt);border:1px solid var(--edge);color:var(--cream);
+  font-size:16px;font-family:var(--ui);
+}
+.seat input::placeholder{color:#7E6E62}
+.seat input:focus{outline:none;border-color:var(--brass)}
+.seat-drop{padding:8px 10px;color:var(--muted);font-size:20px;line-height:1}
+.linkish{color:var(--brass);text-decoration:underline;text-underline-offset:4px;align-self:flex-start;padding:6px 0}
+.opts{display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--edge);padding-top:18px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:14px}
+.opt small{display:block;color:var(--muted);font-size:13px;line-height:1.35;margin-top:2px}
+.pick{display:flex;background:var(--felt);border:1px solid var(--edge);border-radius:10px;overflow:hidden;flex:none}
+.pick button{padding:9px 13px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pick button[aria-pressed="true"]{background:var(--brass);color:var(--ink);font-weight:700}
+.big-btn{
+  width:100%;padding:18px;border-radius:12px;background:var(--brass);color:var(--ink);
+  font-family:var(--display);font-weight:800;font-size:21px;letter-spacing:-.01em;
+}
+.big-btn:disabled{background:var(--edge);color:#8A7A6D}
+
+/* ---------- game ---------- */
+#game{padding:max(10px,env(safe-area-inset-top)) 14px 0}
+.standings{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
+.standings::-webkit-scrollbar{display:none}
+.chip{
+  flex:none;padding:7px 11px;border-radius:9px;background:var(--felt);
+  border:1px solid var(--edge);min-width:76px;
+}
+.chip.active{border-color:var(--brass);background:#4A3A2A}
+.chip .who{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:11ch}
+.chip.active .who{color:var(--brass)}
+.chip .pts{font-family:var(--display);font-weight:700;font-size:19px;font-variant-numeric:tabular-nums}
+
+.turnbar{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:14px 2px 6px}
+.turnbar .label{color:var(--muted);font-size:14px}
+.turnbar .label b{color:var(--cream);font-weight:600}
+.tally{font-family:var(--display);font-weight:800;font-size:44px;line-height:1;color:var(--brass);font-variant-numeric:tabular-nums}
+.tally.pop{animation:pop .35s ease}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.16)}100%{transform:scale(1)}}
+
+.hint{min-height:22px;color:var(--muted);font-size:14px;padding:0 2px 8px}
+.hint.warn{color:var(--danger)}
+.hint.good{color:var(--brass)}
+
+.tray{
+  flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;
+  background:var(--felt);border:1px solid var(--edge);border-radius:16px;
+  padding:20px 14px;margin-bottom:12px;min-height:44vh;
+}
+.row{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.kept-row{padding-top:14px;border-top:1px dashed var(--edge);min-height:60px;align-items:center}
+.kept-note{color:#7E6E62;font-size:13px;text-align:center;width:100%}
+
+.die{
+  width:64px;height:64px;border-radius:13px;flex:none;position:relative;
+  display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:3px;padding:9px;
+  box-shadow:0 4px 0 rgba(0,0,0,.32), inset 0 -3px 6px rgba(0,0,0,.18);
+  transition:transform .16s ease, box-shadow .16s ease;
+}
+.die.red{background:var(--dice-red)}
+.die.white{background:var(--dice-white)}
+.die.green{background:var(--dice-green)}
+.die .pip{border-radius:50%;background:var(--cream);align-self:center;justify-self:center;width:11px;height:11px}
+.die.white .pip{background:var(--ink)}
+.die.sel{transform:translateY(-9px);box-shadow:0 12px 0 rgba(0,0,0,.28),0 0 0 3px var(--brass), inset 0 -3px 6px rgba(0,0,0,.18)}
+.die.kept{width:44px;height:44px;border-radius:10px;padding:6px;gap:2px;opacity:.9;box-shadow:0 2px 0 rgba(0,0,0,.3)}
+.die.kept .pip{width:7px;height:7px}
+.die.tumble{animation:tumble .5s cubic-bezier(.3,1.4,.5,1)}
+@keyframes tumble{
+  0%{transform:translateY(-26px) rotate(-38deg) scale(.86)}
+  60%{transform:translateY(0) rotate(6deg) scale(1.03)}
+  100%{transform:translateY(0) rotate(0) scale(1)}
+}
+
+.actions{display:flex;gap:10px;padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.act{
+  flex:1;padding:17px 10px;border-radius:12px;font-family:var(--display);font-weight:700;
+  font-size:18px;background:var(--felt);border:1px solid var(--edge);
+}
+.act.primary{background:var(--brass);color:var(--ink);border-color:var(--brass);font-weight:800}
+.act:disabled{opacity:.38}
+
+/* ---------- overlays ---------- */
+.veil{
+  position:fixed;inset:0;z-index:20;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  padding:32px 24px;text-align:center;background:rgba(28,21,17,.96);
+  backdrop-filter:blur(3px);
+}
+.veil.on{display:flex}
+.veil h2{font-size:clamp(38px,12vw,60px);line-height:1}
+.veil p{color:var(--muted);max-width:32ch;margin:0}
+.veil .big-btn{max-width:340px}
+.zonk-word{color:var(--danger);letter-spacing:-.03em}
+.win-word{color:var(--brass)}
+
+.rules-veil{align-items:stretch;justify-content:flex-start;text-align:left;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.rules{max-width:520px;margin:0 auto;padding:max(24px,env(safe-area-inset-top)) 4px 40px;-webkit-user-select:text;user-select:text}
+.rules h2{margin-bottom:14px}
+.rules h3{font-family:var(--display);font-weight:700;font-size:17px;margin:22px 0 6px;color:var(--brass)}
+.rules p,.rules li{color:#DCD2C7;font-size:15px}
+.rules ul{padding-left:20px;margin:6px 0}
+.rules li{margin:4px 0}
+.rules dl{display:grid;grid-template-columns:1fr auto;gap:5px 14px;margin:8px 0}
+.rules dt{color:#DCD2C7;font-size:15px}
+.rules dd{margin:0;font-variant-numeric:tabular-nums;color:var(--brass);font-weight:600;text-align:right}
+.ghost{padding:12px 16px;color:var(--muted);font-size:14px;text-decoration:underline;text-underline-offset:4px;align-self:center}
+
+@media (max-height:680px){
+  .die{width:56px;height:56px}
+  .tally{font-size:36px}
+  .tray{min-height:38vh}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ SETUP ============ -->
+<section id="setup" class="screen on">
+  <div>
+    <h1 class="brand"><span>Z</span><span>O</span><span>N</span><span>K</span></h1>
+    <p class="tagline">Six dice, one phone. Roll, press your luck, and bank before it all evaporates.</p>
+  </div>
+
+  <div class="field">
+    <div class="field-title">Who's playing?</div>
+    <div class="roster" id="roster"></div>
+    <button class="linkish" id="addSeat">Add another player</button>
+  </div>
+
+  <div class="opts">
+    <div class="opt">
+      <div>Play to<small>First to reach it triggers a final round.</small></div>
+      <div class="pick" id="pickTarget"></div>
+    </div>
+    <div class="opt">
+      <div>Hot dice<small>All six score — pick them up and keep going.</small></div>
+      <div class="pick" id="pickHot"></div>
+    </div>
+  </div>
+
+  <button class="big-btn" id="start">Start game</button>
+  <button class="ghost" id="rulesFromSetup">Read the rules</button>
+</section>
+
+<!-- ============ GAME ============ -->
+<section id="game" class="screen">
+  <div class="standings" id="standings"></div>
+
+  <div class="turnbar">
+    <div class="label"><b id="whoNow">—</b> <span id="rollsNote"></span></div>
+    <div class="tally" id="tally">0</div>
+  </div>
+
+  <div class="hint" id="hint"></div>
+
+  <div class="tray">
+    <div class="row" id="trayRow"></div>
+    <div class="row kept-row" id="keptRow"></div>
+  </div>
+
+  <div class="actions">
+    <button class="act" id="btnBank">Bank</button>
+    <button class="act primary" id="btnRoll">Roll</button>
+  </div>
+  <button class="ghost" id="rulesFromGame">Rules</button>
+</section>
+
+<!-- ============ OVERLAYS ============ -->
+<div class="veil" id="veilPass">
+  <p>Hand the phone to</p>
+  <h2 id="passName">—</h2>
+  <p id="passScore"></p>
+  <button class="big-btn" id="passGo">I'm ready</button>
+</div>
+
+<div class="veil" id="veilZonk">
+  <h2 class="zonk-word">ZONK</h2>
+  <p id="zonkText"></p>
+  <button class="big-btn" id="zonkGo">Pass the dice</button>
+</div>
+
+<div class="veil" id="veilWin">
+  <p>Final score</p>
+  <h2 class="win-word" id="winName">—</h2>
+  <p id="winText"></p>
+  <button class="big-btn" id="winGo">Play again</button>
+</div>
+
+<div class="veil rules-veil" id="veilRules">
+  <div class="rules">
+    <h2>How Zonk works</h2>
+    <p>Roll six dice. Set aside at least one scoring die, then choose: bank what you've got, or roll what's left and risk it all.</p>
+
+    <h3>Scoring</h3>
+    <dl>
+      <dt>Each 1</dt><dd>100</dd>
+      <dt>Each 5</dt><dd>50</dd>
+      <dt>Three of a kind</dt><dd>100 × face</dd>
+      <dt>Three 1s</dt><dd>1000</dd>
+      <dt>Four of a kind</dt><dd>double</dd>
+      <dt>Five of a kind</dt><dd>quadruple</dd>
+      <dt>Six of a kind</dt><dd>3000</dd>
+      <dt>Straight 1–6</dt><dd>1500</dd>
+      <dt>Three pairs</dt><dd>1500</dd>
+    </dl>
+
+    <h3>Your turn</h3>
+    <ul>
+      <li>Every roll, you must keep at least one scoring die.</li>
+      <li>Dice that don't score can't be kept — the app won't let you.</li>
+      <li>Bank once you have 300 in the turn, or 500 if you haven't scored yet this game. Setting aside four or five dice also unlocks banking.</li>
+      <li>If a roll shows nothing that scores, you zonk: the turn ends and the turn's points are gone.</li>
+      <li>If all six dice end up set aside, they come back hot and you roll again.</li>
+    </ul>
+
+    <h3>Winning</h3>
+    <p>Reach the target and everyone else gets one last turn. Highest total takes it.</p>
+
+    <h3>The odds of zonking</h3>
+    <ul>
+      <li>Six dice — about 2%</li>
+      <li>Three dice — about 28%</li>
+      <li>Two dice — about 44%</li>
+      <li>One die — about 66%</li>
+    </ul>
+  </div>
+  <button class="big-btn" id="rulesClose" style="max-width:520px;margin:0 auto 40px">Close</button>
+</div>
+
+<script>
+"use strict";
+
+const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+const COLORS = ["red","red","white","white","green","green"];
+const $ = id => document.getElementById(id);
+
+/* ---------------- scoring engine ---------------- */
+
+function tally(dice){
+  const c = [0,0,0,0,0,0,0];
+  dice.forEach(d => c[d]++);
+  return c;
+}
+
+// Best score for a set where every die must contribute. Returns null if any die is dead weight.
+function scoreSet(dice){
+  if(!dice.length) return null;
+  const c = tally(dice);
+  let best = null;
+  const better = v => { if(best === null || v > best) best = v; };
+
+  if(dice.length === 6){
+    if([1,2,3,4,5,6].every(f => c[f] === 1)) better(1500);
+    let pairs = 0, clean = true;
+    for(let f=1; f<=6; f++){
+      if(c[f] === 2) pairs++;
+      else if(c[f] !== 0) clean = false;
+    }
+    if(clean && pairs === 3) better(1500);
+  }
+
+  let sum = 0, whole = true;
+  for(let f=1; f<=6; f++){
+    const n = c[f];
+    if(n === 0) continue;
+    const base = f === 1 ? 1000 : f * 100;
+    if(n === 6) sum += 3000;
+    else if(n === 5) sum += base * 4;
+    else if(n === 4) sum += base * 2;
+    else if(n === 3) sum += base;
+    else if(f === 1) sum += 100 * n;
+    else if(f === 5) sum += 50 * n;
+    else whole = false;
+  }
+  if(whole) better(sum);
+  return best;
+}
+
+// Does this roll contain anything at all worth keeping?
+function anyScore(dice){
+  const c = tally(dice);
+  if(c[1] || c[5]) return true;
+  for(let f=1; f<=6; f++) if(c[f] >= 3) return true;
+  if(dice.length === 6){
+    let pairs = 0, clean = true;
+    for(let f=1; f<=6; f++){
+      if(c[f] === 2) pairs++;
+      else if(c[f] !== 0) clean = false;
+    }
+    if(clean && pairs === 3) return true;
+  }
+  return false;
+}
+
+/* ---------------- setup screen ---------------- */
+
+const DEFAULT_NAMES = ["Player 1","Player 2","Player 3","Player 4","Player 5","Player 6"];
+let seats = 2;
+let target = 10000;
+let hotForced = true;
+
+function drawRoster(){
+  const box = $("roster");
+  const kept = [...box.querySelectorAll("input")].map(i => i.value);
+  box.innerHTML = "";
+  for(let i=0; i<seats; i++){
+    const row = document.createElement("div");
+    row.className = "seat";
+    const mark = document.createElement("span");
+    mark.className = "seat-mark";
+    mark.style.background = ["#C4342B","#F2EDE4","#2E7D4F","#D4A24C","#7FA8C9","#C98BB9"][i];
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 14;
+    input.placeholder = DEFAULT_NAMES[i];
+    input.value = kept[i] || "";
+    input.setAttribute("aria-label", "Name of player " + (i+1));
+    row.append(mark, input);
+    if(seats > 2){
+      const drop = document.createElement("button");
+      drop.className = "seat-drop";
+      drop.textContent = "\u00D7";
+      drop.setAttribute("aria-label", "Remove player " + (i+1));
+      drop.onclick = () => {
+        const vals = [...box.querySelectorAll("input")].map(x => x.value);
+        vals.splice(i,1);
+        seats--;
+        drawRoster();
+        box.querySelectorAll("input").forEach((x,n) => x.value = vals[n] || "");
+        $("addSeat").style.display = seats >= 6 ? "none" : "";
+      };
+      row.append(drop);
+    }
+    box.append(row);
+  }
+}
+
+function pickGroup(el, options, current, onPick){
+  el.innerHTML = "";
+  options.forEach(o => {
+    const b = document.createElement("button");
+    b.textContent = o.label;
+    b.setAttribute("aria-pressed", String(o.value === current));
+    b.onclick = () => { onPick(o.value); };
+    el.append(b);
+  });
+}
+
+function drawOptions(){
+  pickGroup($("pickTarget"),
+    [{label:"5,000",value:5000},{label:"10,000",value:10000},{label:"15,000",value:15000}],
+    target, v => { target = v; drawOptions(); });
+  pickGroup($("pickHot"),
+    [{label:"Must roll",value:true},{label:"May bank",value:false}],
+    hotForced, v => { hotForced = v; drawOptions(); });
+}
+
+drawRoster();
+drawOptions();
+
+$("addSeat").onclick = () => {
+  if(seats >= 6) return;
+  seats++;
+  drawRoster();
+  $("addSeat").style.display = seats >= 6 ? "none" : "";
+};
+
+/* ---------------- game state ---------------- */
+
+let G = null;
+let T = null;
+
+function newGame(){
+  const names = [...$("roster").querySelectorAll("input")]
+    .map((inp,i) => (inp.value.trim() || DEFAULT_NAMES[i]));
+  G = {
+    players: names.map(n => ({ name:n, score:0, entered:false })),
+    turn: 0,
+    target: target,
+    hotForced: hotForced,
+    finalRound: false,
+    triggeredBy: null
+  };
+  show("game");
+  beginTurn(true);
+}
+
+function show(which){
+  ["setup","game"].forEach(id => $(id).classList.toggle("on", id === which));
+}
+
+function veil(id, on){ $(id).classList.toggle("on", on); }
+
+function beginTurn(first){
+  const p = G.players[G.turn];
+  T = {
+    points: 0,
+    dice: COLORS.map((c,i) => ({ id:i, color:c, face:1 + Math.floor(Math.random()*6), state:"tray" })),
+    live: 6,
+    rolled: false,
+    hot: false
+  };
+  paint();
+  $("passName").textContent = p.name;
+  $("passScore").textContent = G.finalRound
+    ? "Last turn of the game — " + p.score.toLocaleString() + " on the board."
+    : p.score.toLocaleString() + " points so far.";
+  veil("veilPass", true);
+}
+
+/* ---------------- rendering ---------------- */
+
+function dieNode(d, small){
+  const el = document.createElement(small ? "div" : "button");
+  el.className = "die " + d.color + (small ? " kept" : "") + (d.state === "selected" ? " sel" : "");
+  for(let i=0; i<9; i++){
+    const cell = document.createElement("span");
+    if(PIPS[d.face].includes(i)) cell.className = "pip";
+    el.append(cell);
+  }
+  if(!small){
+    el.setAttribute("aria-label", "Die showing " + d.face + (d.state === "selected" ? ", set aside" : ""));
+    el.setAttribute("aria-pressed", String(d.state === "selected"));
+    el.onclick = () => toggleDie(d.id);
+    el.disabled = !T.rolled;
+  }
+  return el;
+}
+
+function paint(){
+  // standings
+  const s = $("standings");
+  s.innerHTML = "";
+  G.players.forEach((p,i) => {
+    const c = document.createElement("div");
+    c.className = "chip" + (i === G.turn ? " active" : "");
+    c.innerHTML = "<div class='who'></div><div class='pts'></div>";
+    c.querySelector(".who").textContent = p.name;
+    c.querySelector(".pts").textContent = p.score.toLocaleString();
+    s.append(c);
+  });
+
+  $("whoNow").textContent = G.players[G.turn].name;
+  $("rollsNote").textContent = G.finalRound ? "\u00B7 final turn" : "";
+
+  const sel = T.dice.filter(d => d.state === "selected").map(d => d.face);
+  const selScore = sel.length ? scoreSet(sel) : 0;
+  const showTally = T.points + (selScore || 0);
+  const t = $("tally");
+  if(t.textContent !== showTally.toLocaleString()){
+    t.textContent = showTally.toLocaleString();
+    t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop");
+  }
+
+  // trays
+  const tray = $("trayRow"), kept = $("keptRow");
+  tray.innerHTML = ""; kept.innerHTML = "";
+  T.dice.filter(d => d.state !== "kept").forEach(d => tray.append(dieNode(d, false)));
+  const keptDice = T.dice.filter(d => d.state === "kept");
+  if(keptDice.length) keptDice.forEach(d => kept.append(dieNode(d, true)));
+  else {
+    const note = document.createElement("div");
+    note.className = "kept-note";
+    note.textContent = T.rolled ? "Tap the dice you want to keep" : "";
+    kept.append(note);
+  }
+
+  updateButtons(sel, selScore);
+}
+
+function bankFloor(){
+  return G.players[G.turn].entered ? 300 : 500;
+}
+
+function updateButtons(sel, selScore){
+  const roll = $("btnRoll"), bank = $("btnBank"), hint = $("hint");
+  hint.className = "hint";
+
+  if(!T.rolled){
+    roll.textContent = T.hot ? "Roll hot dice" : "Roll " + T.live + " dice";
+    roll.disabled = false;
+    bank.disabled = true;
+    hint.textContent = T.hot
+      ? "All six scored. They're back in play."
+      : (T.points ? "Turn total held: " + T.points.toLocaleString() : "");
+    return;
+  }
+
+  const valid = sel.length > 0 && selScore !== null;
+  const setAside = sel.length + T.dice.filter(d => d.state === "kept").length;
+  const left = T.live - sel.length;
+  const running = T.points + (valid ? selScore : 0);
+  const forcedHot = G.hotForced && valid && left === 0;
+  const canBank = valid && !forcedHot && (running >= bankFloor() || setAside === 4 || setAside === 5);
+
+  roll.disabled = !valid;
+  bank.disabled = !canBank;
+  roll.textContent = left === 0 ? "Keep all six" : "Keep & roll " + left;
+  bank.textContent = "Bank " + (valid ? running.toLocaleString() : "");
+
+  if(!sel.length){
+    hint.textContent = "Keep at least one scoring die.";
+  } else if(selScore === null){
+    hint.className = "hint warn";
+    hint.textContent = "One of those doesn't score on its own.";
+  } else if(forcedHot){
+    hint.className = "hint good";
+    hint.textContent = "All six score — hot dice, you have to roll again.";
+  } else if(!canBank){
+    hint.className = "hint";
+    hint.textContent = "Need " + bankFloor().toLocaleString() + " to bank" +
+      (G.players[G.turn].entered ? "" : " on your first score") + ".";
+  } else {
+    hint.className = "hint good";
+    hint.textContent = left === 0 ? "Six for six — hot dice if you roll." : "Good to bank or push on.";
+  }
+}
+
+function toggleDie(id){
+  const d = T.dice.find(x => x.id === id);
+  if(!d || d.state === "kept" || !T.rolled) return;
+  d.state = d.state === "selected" ? "tray" : "selected";
+  paint();
+}
+
+/* ---------------- actions ---------------- */
+
+function doRoll(){
+  // lock in the current selection first
+  const sel = T.dice.filter(d => d.state === "selected");
+  if(sel.length){
+    const s = scoreSet(sel.map(d => d.face));
+    if(s === null) return;
+    T.points += s;
+    sel.forEach(d => d.state = "kept");
+    T.live -= sel.length;
+  }
+
+  if(T.live === 0){
+    T.dice.forEach(d => d.state = "tray");
+    T.live = 6;
+    T.hot = true;
+  } else {
+    T.hot = false;
+  }
+
+  const inPlay = T.dice.filter(d => d.state !== "kept");
+  inPlay.forEach(d => d.face = 1 + Math.floor(Math.random() * 6));
+  T.rolled = true;
+  paint();
+
+  $("trayRow").querySelectorAll(".die").forEach((el,i) => {
+    el.classList.remove("tumble"); void el.offsetWidth;
+    el.style.animationDelay = (i * 40) + "ms";
+    el.classList.add("tumble");
+  });
+
+  if(!anyScore(inPlay.map(d => d.face))){
+    setTimeout(zonk, 620);
+  }
+}
+
+function zonk(){
+  const p = G.players[G.turn];
+  $("zonkText").textContent = T.points
+    ? p.name + " loses " + T.points.toLocaleString() + " points from this turn."
+    : "Nothing scored. Nothing lost.";
+  T.points = 0;
+  veil("veilZonk", true);
+}
+
+function doBank(){
+  const sel = T.dice.filter(d => d.state === "selected");
+  if(sel.length){
+    const s = scoreSet(sel.map(d => d.face));
+    if(s === null) return;
+    T.points += s;
+    sel.forEach(d => d.state = "kept");
+    T.live -= sel.length;
+  }
+  const p = G.players[G.turn];
+  p.score += T.points;
+  p.entered = true;
+  paint();
+
+  if(!G.finalRound && p.score >= G.target){
+    G.finalRound = true;
+    G.triggeredBy = G.turn;
+  }
+  nextPlayer();
+}
+
+function nextPlayer(){
+  veil("veilZonk", false);
+  const next = (G.turn + 1) % G.players.length;
+  if(G.finalRound && next === G.triggeredBy){
+    return endGame();
+  }
+  G.turn = next;
+  beginTurn(false);
+}
+
+function endGame(){
+  const best = Math.max(...G.players.map(p => p.score));
+  const winners = G.players.filter(p => p.score === best);
+  $("winName").textContent = winners.length > 1
+    ? winners.map(w => w.name).join(" & ")
+    : winners[0].name;
+  $("winText").textContent = G.players
+    .slice().sort((a,b) => b.score - a.score)
+    .map(p => p.name + " " + p.score.toLocaleString())
+    .join("   \u00B7   ");
+  veil("veilWin", true);
+}
+
+/* ---------------- wiring ---------------- */
+
+$("start").onclick = newGame;
+$("btnRoll").onclick = doRoll;
+$("btnBank").onclick = doBank;
+
+$("passGo").onclick = () => {
+  veil("veilPass", false);
+  paint();
+};
+$("zonkGo").onclick = nextPlayer;
+$("winGo").onclick = () => {
+  veil("veilWin", false);
+  show("setup");
+};
+
+$("rulesFromSetup").onclick = () => veil("veilRules", true);
+$("rulesFromGame").onclick = () => veil("veilRules", true);
+$("rulesClose").onclick = () => veil("veilRules", false);
+
+// keep the layout honest when mobile browser chrome slides around
+window.addEventListener("resize", () => {
+  document.body.style.minHeight = window.innerHeight + "px";
+});
+</script>
+</body>
+</html>

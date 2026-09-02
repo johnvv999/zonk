@@ -1,0 +1,170 @@
+# Zonk
+
+Six-dice Zonk for up to 8 players on their own phones, anywhere. Static site on
+GitHub Pages, live game state and archive in Firebase Realtime Database.
+Free tier throughout, no payment method required.
+
+## Files
+
+| File | What it is |
+|---|---|
+| `index.html` | The whole game. The only file you need to edit. |
+| `database.rules.json` | Security rules to paste into the Firebase console. |
+| `local-passphone.html` | Earlier single-device version. No Firebase, no internet. Keep or delete. |
+
+---
+
+## Setup
+
+### 1. Create the Firebase project
+
+Go to <https://console.firebase.google.com> and click **Create a project**.
+Name it anything (`zonk` is fine). Turn Google Analytics **off** — you don't need
+it and it adds consent prompts. You stay on the free Spark plan; no card required.
+
+### 2. Create the Realtime Database
+
+In the left sidebar: **Build → Realtime Database → Create Database**.
+
+- Pick a location (`us-central1` is fine for nationwide play).
+- When it asks for rules, choose **Start in test mode**. You'll replace these in step 4.
+
+Make sure you're in *Realtime Database*, not *Firestore Database*. They're
+different products and this app uses Realtime Database.
+
+### 3. Register a web app and copy the config
+
+Click the gear icon → **Project settings** → scroll to **Your apps** → click the
+web icon `</>`. Give it a nickname, skip Firebase Hosting, click **Register app**.
+
+You'll get a `firebaseConfig` block. Copy it.
+
+Open `index.html`, find the block marked `FIREBASE CONFIG` near the top of the
+`<script>` tag, and replace the placeholder values with yours. It looks like this:
+
+```js
+const firebaseConfig = {
+  apiKey:            "AIza...",
+  authDomain:        "zonk-1234.firebaseapp.com",
+  databaseURL:       "https://zonk-1234-default-rtdb.firebaseio.com",
+  projectId:         "zonk-1234",
+  storageBucket:     "zonk-1234.appspot.com",
+  messagingSenderId: "123456789",
+  appId:             "1:123:web:abc"
+};
+```
+
+If `databaseURL` is missing from what Firebase gave you, you skipped step 2 or
+created a Firestore database instead. Go back and create the Realtime Database.
+
+These keys are public by design — they identify your project, they don't
+authorize anything. The security rules in the next step are what protect the data.
+
+### 4. Lock down the rules
+
+Realtime Database → **Rules** tab. Delete what's there, paste the contents of
+`database.rules.json`, click **Publish**.
+
+What these do:
+
+- Rooms are readable and writable by anyone with the 4-character code. Fine for a
+  private game; anyone who guesses a code could interfere with a game in progress.
+- The archive is readable by anyone, and entries can be **created but never edited
+  or deleted**. Nobody can rewrite history, including you — deletions have to go
+  through the console.
+- Field sizes are capped so nobody can dump junk into your database.
+
+Test mode rules expire after 30 days and the whole thing stops working, so don't
+skip this step.
+
+### 5. Publish to GitHub Pages
+
+Create a repo, push `index.html` to the root, then **Settings → Pages → Source:
+Deploy from a branch → `main` → `/ (root)`**. Live at
+`https://<user>.github.io/<repo>/` within a minute or two.
+
+Firebase doesn't need to know about your domain for Realtime Database access, so
+there's nothing else to configure.
+
+### 6. Tell your players
+
+Send them the URL. Each person:
+
+1. Opens the link and types their own name.
+2. **Add to Home Screen** (iPhone: Share → Add to Home Screen. Android: menu →
+   Add to Home screen). This matters — see the alerts section below.
+3. One person taps **Start a new room** and reads out the 4-character code.
+   Everyone else types the code and taps **Join room**.
+4. Everyone taps **Turn on turn alerts** in the lobby.
+5. The host taps **Start game**.
+
+---
+
+## Turn alerts
+
+Three things fire when it becomes your turn: vibration, a two-note chime, and a
+system notification. Platform support is uneven:
+
+| | Android Chrome | iPhone Safari |
+|---|---|---|
+| Vibration | Yes | Never — iOS has no vibration API for web |
+| Chime | Yes | Yes, while the page is open |
+| Notification | Yes | Only if added to the Home Screen |
+
+So on iPhone, **Add to Home Screen is what makes notifications work**. Without it
+an iPhone player only gets the chime, and only while the page is in front.
+
+The app also requests a screen wake lock so phones don't sleep mid-game.
+
+## If someone drops off
+
+Cellular being what it is, a player will occasionally vanish mid-turn. After 60
+seconds with no activity, everyone else sees a **skip their turn** link at the
+bottom. Skipping banks nothing for that player and moves on.
+
+A player who reloads or reconnects rejoins their game automatically — their
+identity is stored on their device.
+
+## The hall of fame
+
+When a game ends, the winner types a victory line. That plus the final scores gets
+written to `/archive` and is readable from the **Hall of fame** button on the home
+screen. The archive survives everything; live rooms are deleted when the host taps
+**Back to start**.
+
+## Costs
+
+Realtime Database on Spark gives 1 GB stored, 10 GB downloaded per month, and 100
+simultaneous connections. A full game with 8 players moves roughly 5 MB, so you
+have room for hundreds of games a month. Spark enforces hard cut-offs rather than
+overage billing — if you somehow hit a limit the app stops working until reset, and
+you never get a bill.
+
+Archive entries are a few hundred bytes each. You'd need tens of thousands of games
+to notice the storage.
+
+## Rules implemented
+
+Standard six-die chart: 1s are 100, 5s are 50, three of a kind is 100 × face
+(1000 for three 1s), four of a kind doubles it, five of a kind quadruples it, six
+of a kind is 3000, a 1–6 straight is 1500, three pairs is 1500.
+
+Keep at least one scoring die per roll. Bank at 300 in the turn, 500 for your first
+score of the game, or with four or five dice set aside. Zonk wipes the turn. All
+six dice scoring goes hot. Reaching the target triggers a final round.
+
+Three pairs is strict — three distinct values with exactly two each. Some tables
+count four-of-a-kind plus a pair; that's a change in `scoreSet()`.
+
+## Where things live in the code
+
+- `scoreSet(dice)` — best score for a set, or `null` if a die is dead weight.
+- `anyScore(dice)` — zonk detection.
+- `bankFloor(g)` — the 300/500 entry threshold.
+- `advance(gained)` — end of turn, final-round trigger, winner selection.
+- `alertMyTurn()` — vibrate, chime, notify.
+- `saveToHall(g)` — the one write to `/archive`.
+- `COLORS` — 2 red, 2 white, 2 green. Cosmetic only.
+
+Only the active player's phone writes game state; everyone else listens. That's
+what keeps concurrent writes from stepping on each other.
