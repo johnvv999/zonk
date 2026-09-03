@@ -167,6 +167,14 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .entry .when{color:#8A7A6D;font-size:12px;white-space:nowrap}
 .entry .q{margin:7px 0;font-size:15px;color:var(--cream);font-style:italic}
 .entry .line{color:var(--muted);font-size:13px}
+#toast{position:fixed;left:12px;right:12px;bottom:16px;z-index:60;display:none;
+  background:#5A2C26;border:1px solid #9A4A40;color:#FFE6E2;padding:12px 14px;
+  border-radius:10px;font-size:14px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.5);
+  -webkit-user-select:text;user-select:text}
+#toast.on{display:block}
+.die.reject{animation:shake .3s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}
+  75%{transform:translateX(6px)}}
 .banner{background:#4A2A26;border:1px solid #7A3A33;color:#F0D0CC;padding:12px 14px;
   border-radius:10px;font-size:14px;line-height:1.4}
 
@@ -238,10 +246,11 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   </div>
 </section>
 
+<div id="toast"></div>
+
 <div class="veil" id="veilZonk">
   <h2 class="zonk-word">ZONK</h2>
   <p id="zonkText"></p>
-  <button class="big-btn quiet" id="btnZonkGo" style="max-width:340px">Pass the dice</button>
 </div>
 
 <div class="veil" id="veilWin">
@@ -456,7 +465,7 @@ $("myName").value = store.get("zonk.name") || "";
 let table = null, unsub = null, seated = false;
 let mySel = new Set();
 let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
-let zonkTimer = null, archived = false;
+let zonkTimer = null, passedStamp = null, archived = false;
 
 const playersRef = () => ref(db, "table/players");
 const gameRef    = () => ref(db, "table/game");
@@ -762,6 +771,33 @@ function drawActions(g, myTurn, selFaces, selScore, running){
 }
 
 /* ---------- actions: only the active player writes ---------- */
+let toastTimer = null;
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 9000);
+}
+
+// Every game write goes through here so a rejected or failed write is visible
+// instead of looking like a dead button.
+function clean(o){
+  const out = {};
+  for(const k in o) out[k] = (o[k] === undefined) ? null : o[k];
+  return out;
+}
+
+function writeGame(obj, what){
+  try{
+    return set(gameRef(), clean(obj)).catch(err => {
+      toast("Couldn't " + what + ": " + (err && err.message ? err.message : err));
+    });
+  }catch(err){
+    toast("Couldn't " + what + ": " + (err && err.message ? err.message : err));
+  }
+}
+
 function commitSelection(g){
   const sel = [...mySel].filter(i => g.states[i] === "tray");
   if(!sel.length) return null;
@@ -788,18 +824,22 @@ function doRoll(){
   const inPlay = states.map((st,i) => st!=="kept" ? faces[i] : 0).filter(Boolean);
   const zonked = !anyScore(inPlay);
 
-  set(gameRef(), Object.assign({}, g, {
+  writeGame(Object.assign({}, g, {
     faces, states, points, live, rolled: true, zonk: zonked,
     zonkText: zonked ? (points
       ? g.names[myId] + " loses " + points.toLocaleString() + " from this turn."
       : "Nothing scored. Nothing lost.") : "",
     stamp: Date.now()
-  }));
+  }), "roll");
 
 }
 
 function passTheDice(){
-  if(table && table.game && table.game.zonk) advance(0);
+  const g = table && table.game;
+  if(!g || !g.zonk) return;
+  if(passedStamp === g.stamp) return;   // already handled this zonk
+  passedStamp = g.stamp;
+  advance(0);
 }
 
 function doBank(){
@@ -821,7 +861,8 @@ function advance(gained){
   const entered = Object.assign({}, g.entered);
   if(gained > 0){ scores[me] = (scores[me]||0) + gained; entered[me] = true; }
 
-  let finalRound = g.finalRound, triggeredBy = g.triggeredBy;
+  let finalRound = !!g.finalRound;
+  let triggeredBy = (g.triggeredBy === undefined) ? null : g.triggeredBy;
   if(!finalRound && scores[me] >= TARGET){ finalRound = true; triggeredBy = g.turn; }
 
   const next = (g.turn + 1) % g.order.length;
@@ -832,12 +873,13 @@ function advance(gained){
     winner = g.order.find(p => (scores[p]||0) === best);
   }
 
-  set(gameRef(), Object.assign({}, g, {
+  writeGame(Object.assign({}, g, {
     scores, entered, turn: over ? g.turn : next,
     states: ["tray","tray","tray","tray","tray","tray"],
     points: 0, live: 6, rolled: false, zonk: false, zonkText: "",
-    finalRound, triggeredBy, over, winner, stamp: Date.now()
-  }));
+    finalRound, triggeredBy: triggeredBy ?? null, over,
+    winner: winner ?? null, stamp: Date.now()
+  }), "end the turn");
 }
 
 function skipTurn(){
@@ -850,12 +892,12 @@ function skipTurn(){
     const best = Math.max.apply(null, g.order.map(p => g.scores[p]||0));
     winner = g.order.find(p => (g.scores[p]||0) === best);
   }
-  set(gameRef(), Object.assign({}, g, {
+  writeGame(Object.assign({}, g, {
     turn: over ? g.turn : next,
     states: ["tray","tray","tray","tray","tray","tray"],
     points: 0, live: 6, rolled: false, zonk: false, zonkText: "",
-    over, winner, stamp: Date.now()
-  }));
+    over, winner: winner ?? null, stamp: Date.now()
+  }), "skip the turn");
 }
 
 function abandonGame(){
@@ -961,7 +1003,6 @@ $("btnSit").onclick = sitDown;
 $("btnStart").onclick = startGame;
 $("btnLeave").onclick = leaveTable;
 $("btnAlerts").onclick = enableAlerts;
-$("btnZonkGo").onclick = passTheDice;
 $("btnSkip").onclick = skipTurn;
 $("btnAbandon").onclick = abandonGame;
 $("btnQuote").onclick = () => postQuote($("quoteInput").value);
