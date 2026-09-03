@@ -196,6 +196,14 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .veil input[type=text]{max-width:340px}
 .veil h2.zonk-word{color:var(--zonk-yellow);font-size:22vw;
   transform-origin:center;will-change:transform}
+.veil h2.zonk-word.off{display:none}
+/* Absolutely placed rather than a flex child, so the veil's padding doesn't
+   stop it reaching the screen edges. auto width/height against both max
+   constraints is what fits it to the viewport without distorting it. */
+#ptfArt{display:none;position:absolute;inset:0;margin:auto;
+  width:auto;height:auto;max-width:100%;max-height:100%;
+  transform-origin:center;will-change:transform}
+#ptfArt.on{display:block}
 .nope-word{color:var(--brass)}
 .rollout-word{color:var(--live)}
 .cc-r{color:var(--dice-red)}
@@ -346,6 +354,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 
 <div class="veil" id="veilZonk">
   <h2 class="zonk-word" id="zonkWord">ZONK</h2>
+  <img id="ptfArt" alt="Pack the F@#&#9733;&amp;R">
 </div>
 
 <div class="veil" id="veilWin">
@@ -441,6 +450,7 @@ const ROLL_SHOW_MS = 1000;   // look at the losing roll first
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const ZONK_WORD_MS = 900;    // the word's spin-and-swell entrance
 const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
+const PTF_ART = "ptf.webp";  // shown instead of the word on a PTF
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 // Cube rotation that swings a given face to the front. Pairs with the .f1-.f6
@@ -668,6 +678,23 @@ function alertMyTurn(){
 // widths, and the target is a distance from the screen edge, not a font size.
 // The resting transform is set first so the word stays there once the
 // animation is done, and so reduced-motion callers simply land on it.
+// The entrance both the word and the PTF art use: starts small and a full turn
+// out of true, then eases up to `to` and upright. Reduced-motion callers land
+// straight on the resting size with no spin.
+function spinUp(el, to){
+  el.style.transform = to === 1 ? "" : "scale(" + to + ")";
+  let still = false;
+  try{ still = matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
+  if(still || !el.animate) return;
+  el.animate(
+    [{ transform: "scale(" + (to * 0.1) + ") rotate(-360deg)" },
+     { transform: "scale(" + to + ") rotate(0deg)" }],
+    { duration: ZONK_WORD_MS, easing: "cubic-bezier(.19,1,.3,1)" }
+  );
+}
+
+// The word's resting scale has to be measured: ZONK and PTF are different
+// widths, and the target is a distance from the screen edge, not a font size.
 function playZonkWord(){
   const el = $("zonkWord");
   el.style.transform = "none";                       // measure it unscaled
@@ -679,15 +706,20 @@ function playZonkWord(){
   const to = Math.min((doc.clientWidth  - ZONK_WORD_GUTTER * 2) / box.width,
                       (doc.clientHeight - ZONK_WORD_GUTTER * 2) / box.height);
   if(!(to > 0)) return;
-  el.style.transform = "scale(" + to + ")";
-  let still = false;
-  try{ still = matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
-  if(still || !el.animate) return;
-  el.animate(
-    [{ transform: "scale(" + (to * 0.1) + ") rotate(-360deg)" },
-     { transform: "scale(" + to + ") rotate(0deg)" }],
-    { duration: ZONK_WORD_MS, easing: "cubic-bezier(.19,1,.3,1)" }
-  );
+  spinUp(el, to);
+}
+
+// The art needs no measuring - CSS already fits it to the viewport, so its
+// resting state is simply untransformed.
+// It is a few hundred KB for a screen most games never reach, so it is only
+// fetched once somebody is one zonk short of a PTF.
+let ptfArtAsked = false;
+function preloadPtfArt(g){
+  if(ptfArtAsked) return;
+  const runs = Object.keys(g.streak || {}).map(k => g.streak[k] || 0);
+  if(!runs.some(n => n >= ZONK_STREAK_PTF - 1)) return;
+  ptfArtAsked = true;
+  $("ptfArt").src = PTF_ART;
 }
 
 /* ---------- identity ---------- */
@@ -1211,6 +1243,8 @@ function afterRender(g, myTurn){
     }, Math.max(0, CC_DELAY_MS - since));
   }
 
+  preloadPtfArt(g);
+
   clearTimeout(zonkTimer);
   clearTimeout(zonkShowTimer);
   if(g.zonk){
@@ -1221,14 +1255,21 @@ function afterRender(g, myTurn){
     const since = Date.now() - g.stamp;
     const showIn = ROLL_SHOW_MS - since;
     const runs = (g.streak || {})[g.order[g.turn]] || 0;
-    $("zonkWord").textContent = runs >= ZONK_STREAK_PTF ? "PTF" : "ZONK";
+    const ptf = runs >= ZONK_STREAK_PTF;
+    $("zonkWord").textContent = ptf ? "PTF" : "ZONK";
     // afterRender runs on every render, so the entrance is keyed to the stamp -
     // it plays once per zonk rather than restarting under it.
     const reveal = () => {
+      // A PTF that arrives before the art has finished downloading falls back
+      // to the word, rather than flashing an empty screen.
+      const art = $("ptfArt");
+      const useArt = ptf && art.complete && art.naturalWidth > 0;
+      art.classList.toggle("on", useArt);
+      $("zonkWord").classList.toggle("off", useArt);
       veil("veilZonk", true);
       if(zonkAnimFor === g.stamp) return;
       zonkAnimFor = g.stamp;
-      playZonkWord();
+      if(useArt) spinUp(art, 1); else playZonkWord();
     };
     if(showIn <= 0){
       reveal();
