@@ -62,25 +62,28 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .big-btn:disabled{background:var(--edge);color:#8A7A6D}
 .ghost{padding:12px;color:var(--muted);font-size:14px;text-decoration:underline;text-underline-offset:4px}
 .err{color:var(--danger);font-size:14px;min-height:20px}
-.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:8px}
-.namechip{width:100%;padding:12px 8px;border-radius:10px;background:var(--felt);
-  border:1px solid var(--edge);font-size:15px;color:var(--cream);text-align:center;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  transition:transform .15s ease,opacity .15s ease,background .15s ease}
-.namechip.picked{background:var(--brass);border-color:var(--brass);color:var(--ink);font-weight:600}
-.namechip.holding{transform:scale(.88);opacity:.45;background:var(--danger);border-color:var(--danger)}
-.chip-hint{color:#7E6E62;font-size:12px;margin-top:7px}
+.spacer{flex:1;min-height:8px}
 
 .lobbyhead{text-align:center}
 .lobbyhead h2{font-size:clamp(30px,9vw,42px);color:var(--brass)}
 .lobbyhead p{color:var(--muted);font-size:14px;margin:6px 0 0}
+.lobbyhead #lobbyCount{color:var(--brass);font-family:var(--display);font-weight:700;font-size:17px}
+.lobbyhead #rollRound{color:var(--brass);font-family:var(--display);font-weight:700;font-size:16px}
+.prow .rank{font-family:var(--display);font-weight:800;font-size:16px;color:var(--brass);
+  min-width:26px;text-align:center}
+.prow .waiting{color:#7E6E62;font-size:13px}
+.prow.tied{border-color:var(--brass)}
+.minidie{width:34px;height:34px;border-radius:8px;flex:none;display:grid;
+  grid-template:repeat(3,1fr)/repeat(3,1fr);gap:2px;padding:5px;
+  box-shadow:0 2px 0 rgba(0,0,0,.3)}
+.minidie .pip{border-radius:50%;background:var(--cream);align-self:center;
+  justify-self:center;width:6px;height:6px}
+.minidie.white .pip{background:var(--ink)}
 .plist{display:flex;flex-direction:column;gap:7px}
 .prow{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--felt);border:1px solid var(--edge);border-radius:10px}
 .prow .dot{width:9px;height:9px;border-radius:50%;background:var(--live);flex:none}
 .prow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prow .tag{color:var(--brass);font-size:12px}
-.rulecard{border-top:1px solid var(--edge);padding-top:15px;color:var(--muted);font-size:14px;line-height:1.5}
-.rulecard b{color:var(--cream);font-weight:600}
 
 #game{padding:max(8px,env(safe-area-inset-top)) 14px 0}
 .standings{display:flex;gap:6px;overflow-x:auto;padding-bottom:9px;scrollbar-width:none}
@@ -160,6 +163,8 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .zonk-word{color:var(--danger)}
 .nope-word{color:var(--brass)}
 .rollout-word{color:var(--live)}
+.cc-r{color:var(--dice-red)}
+.cc-g{color:var(--dice-green)}
 .win-word{color:var(--brass)}
 .finaltable{display:flex;flex-direction:column;gap:5px;width:100%;max-width:340px}
 .finalrow{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;
@@ -219,13 +224,11 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <label for="myName">Your name</label>
     <input type="text" id="myName" maxlength="14" placeholder="How you'll show up" autocomplete="nickname">
   </div>
-  <div id="knownWrap" style="display:none">
-    <label>Played before?</label>
-    <div class="chips" id="knownList"></div>
-    <div class="chip-hint">Tap to use it. Press and hold to remove a typo - the record kept under that name is safe.</div>
-  </div>
   <div class="err" id="homeErr"></div>
   <button class="big-btn" id="btnSit">Sit down at the table</button>
+
+  <div class="spacer"></div>
+
   <div style="display:flex;justify-content:center;gap:6px">
     <button class="ghost" id="openRules1">Rules</button>
     <button class="ghost" id="openHall1">Hall of fame</button>
@@ -236,13 +239,10 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <div class="lobbyhead">
     <h2>At the table</h2>
     <p id="lobbySub">Waiting for players</p>
+    <p id="lobbyCount"></p>
   </div>
   <div class="plist" id="lobbyList"></div>
   <button class="big-btn quiet" id="btnAlerts">Turn on turn alerts</button>
-  <div class="rulecard">
-    Playing to <b>10,000</b>. Stop at <b>300</b>, or <b>500</b> for your first score.
-    All six dice scoring means <b>hot dice</b> — you pick them all back up and must roll again.
-  </div>
   <div class="err" id="lobbyErr"></div>
   <button class="big-btn" id="btnStart">Start game</button>
   <button class="big-btn quiet" id="btnSolo">Play solo</button>
@@ -250,6 +250,18 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <button class="ghost" id="openRules2">Rules</button>
     <button class="ghost" id="btnLeave">Leave the table</button>
   </div>
+</section>
+
+<section id="rolloff" class="screen pad">
+  <div class="lobbyhead">
+    <h2>Roll for order</h2>
+    <p id="rollSub">Highest die goes first</p>
+    <p id="rollRound"></p>
+  </div>
+  <div class="plist" id="rollList"></div>
+  <button class="big-btn" id="btnRollOff">Roll</button>
+  <button class="big-btn quiet" id="btnRollNudge" style="display:none">Roll for whoever's missing</button>
+  <button class="ghost" id="btnCancelRoll">Back to the table</button>
 </section>
 
 <section id="game" class="screen">
@@ -279,6 +291,11 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <button class="big-btn" id="btnJoinNext">Join next game</button>
   <button class="big-btn quiet" id="btnSoloNow" style="max-width:340px">Play solo instead</button>
   <button class="ghost" id="btnJoinLeave">Leave the table</button>
+</div>
+
+<div class="veil" id="veilColor">
+  <h2><span class="cc-r">Color</span> <span class="cc-g">Coded</span></h2>
+  <p>Every pair matched its own colour.</p>
 </div>
 
 <div class="veil" id="veilRollout">
@@ -319,10 +336,9 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <dl>
       <dt>Each 1</dt><dd>100</dd><dt>Each 5</dt><dd>50</dd>
       <dt>Three of a kind</dt><dd>100 x face</dd><dt>Three 1s</dt><dd>1000</dd>
-      <dt>Four of a kind</dt><dd>double</dd><dt>Five of a kind</dt><dd>quadruple</dd>
-      <dt>Six of a kind</dt><dd>3000</dd><dt>Straight 1-6</dt><dd>1500</dd>
-      <dt>Three pairs</dt><dd>1500</dd>
+      <dt>Straight 1-6</dt><dd>1500</dd><dt>Three pairs</dt><dd>1500</dd>
     </dl>
+    <p>Three is the whole set. A fourth matching die adds nothing on its own - unless it's a 1 or a 5, which always score singly. So four 2s is still 200, and the odd one can't be kept.</p>
     <h3>Your turn</h3>
     <ul>
       <li>Every roll, keep at least one scoring die. Dice that don't score can't be kept.</li>
@@ -372,7 +388,7 @@ const firebaseConfig = {
 };
 /* ================= nothing below needs editing ================= */
 
-const VERSION = "20260903-1215";
+const VERSION = "20260903-1253";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
 const IDLE_SKIP_MS = 60000;    // manual skip link appears
@@ -380,8 +396,12 @@ const TURN_LIMIT_MS = 120000;  // turn is skipped automatically
 const ZONK_STREAK_PTF = 3;
 const QUOTE_WAIT_MS = 30000;      // winner has this long to start typing
 const GAME_MAX_MS = 60 * 60 * 1000;  // an unfinished game is cleared after an hour
+const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
+const ROLLOFF_MAX_MS = 5 * 60 * 1000;
+const CC_DELAY_MS = 2000;   // let the roll land first
+const CC_HOLD_MS = 2000;
 const ROLL_SHOW_MS = 1000;   // look at the losing roll first
-const ZONK_HOLD_MS = 3000;   // then the ZONK screen
+const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const COLORS = ["red","red","white","white","green","green"];
@@ -398,7 +418,7 @@ const store = {
   set(k,v){ try{ localStorage.setItem(k,v); }catch(e){ mem[k]=v; } },
   del(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
 };
-const show = id => ["home","lobby","game"].forEach(s => $(s).classList.toggle("on", s===id));
+const show = id => ["home","lobby","rolloff","game"].forEach(s => $(s).classList.toggle("on", s===id));
 const veil = (id,on) => $(id).classList.toggle("on", !!on);
 
 /* ---------- scoring ---------- */
@@ -415,16 +435,18 @@ function scoreSet(dice){
     for(let f=1;f<=6;f++){ if(c[f]===2) pairs++; else if(c[f]!==0) clean=false; }
     if(clean && pairs===3) better(1500);
   }
+  // Only a group of three counts as a set - there is no bonus for a fourth or
+  // fifth matching die. Leftovers score singly if they are 1s or 5s; any other
+  // leftover means the selection isn't a legal keep.
   let sum=0, whole=true;
   for(let f=1;f<=6;f++){
     const n=c[f]; if(!n) continue;
     const base = f===1 ? 1000 : f*100;
-    if(n===6) sum+=3000;
-    else if(n===5) sum+=base*4;
-    else if(n===4) sum+=base*2;
-    else if(n===3) sum+=base;
-    else if(f===1) sum+=100*n;
-    else if(f===5) sum+=50*n;
+    sum += Math.floor(n/3) * base;
+    const spare = n % 3;
+    if(!spare) continue;
+    if(f===1) sum += 100*spare;
+    else if(f===5) sum += 50*spare;
     else whole=false;
   }
   if(whole) better(sum);
@@ -441,6 +463,20 @@ function anyScore(dice){
     if(clean && pairs===3) return true;
   }
   return false;
+}
+
+// Three pairs where both dice of each pair share a colour. Written against the
+// COLORS table rather than assuming which dice are twins, so it still holds if
+// two pairs happen to be the same colour as each other.
+function colorCoded(faces, states){
+  if(!faces || faces.length !== 6) return false;
+  if(states && states.some(st => st === "kept")) return false;
+  const byFace = {};
+  faces.forEach((f,i) => { (byFace[f] = byFace[f] || []).push(i); });
+  const groups = Object.keys(byFace).map(k => byFace[k]);
+  if(groups.length !== 3) return false;
+  if(!groups.every(g => g.length === 2)) return false;
+  return groups.every(g => COLORS[g[0]] === COLORS[g[1]]);
 }
 
 /* ---------- alerts ---------- */
@@ -521,7 +557,8 @@ let table = null, unsub = null, seated = false;
 let mySel = new Set();
 let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
-let autoSkipTimer = null, quoteTimer = null, joiningNext = false;
+let autoSkipTimer = null, quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
+let ccTimer = null, ccHideTimer = null, ccFor = null;
 
 // A solo game lives only in this variable - it never touches the shared table,
 // so any number of people can play solo at once while a group game runs.
@@ -554,9 +591,6 @@ async function sitDown(){
     name: myName(),
     joined: players[myId] ? players[myId].joined : Date.now()
   });
-  // Removing a name only clears the shortcut button. Typing it again brings it
-  // back, and the win/played record under that name was never touched.
-  set(ref(db, "roster/" + myId), { name: myName(), last: Date.now() }).catch(()=>{});
   try{ onDisconnect(ref(db, "table/players/" + myId)).remove(); }catch(e){}
 
   seated = true;
@@ -564,72 +598,6 @@ async function sitDown(){
   listen();
 }
 
-async function loadRoster(){
-  if(!configured) return;
-  try{
-    const snap = await get(ref(db, "roster"));
-    if(!snap.exists()){
-      $("knownWrap").style.display = "none";
-      return;
-    }
-    const seen = new Map();
-    snap.forEach(ch => {
-      const v = ch.val();
-      if(!v || !v.name) return;
-      const key = v.name.trim().toLowerCase();
-      if(!key) return;
-      const e = seen.get(key) || { name: v.name.trim(), last: 0, ids: [] };
-      e.ids.push(ch.key);
-      if((v.last || 0) >= e.last){ e.last = v.last || 0; e.name = v.name.trim(); }
-      seen.set(key, e);
-    });
-    const names = [...seen.values()].sort((a,b) => b.last - a.last).slice(0,16);
-    if(!names.length){
-      $("knownList").innerHTML = "";
-      $("knownWrap").style.display = "none";
-      return;
-    }
-    const box = $("knownList");
-    box.innerHTML = "";
-    names.forEach(n => {
-      const b = document.createElement("button");
-      b.className = "namechip";
-      b.textContent = n.name;
-      let hold = null, removed = false;
-
-      const startHold = () => {
-        removed = false;
-        b.classList.add("holding");
-        hold = setTimeout(async () => {
-          removed = true;
-          b.classList.remove("holding");
-          try{ if(navigator.vibrate) navigator.vibrate([40,60,40]); }catch(e){}
-          try{
-            await Promise.all(n.ids.map(id => remove(ref(db, "roster/" + id))));
-          }catch(e){}
-          loadRoster();
-        }, 2000);
-      };
-      const cancelHold = () => { clearTimeout(hold); b.classList.remove("holding"); };
-
-      b.addEventListener("pointerdown", startHold);
-      ["pointerup","pointerleave","pointercancel"].forEach(ev =>
-        b.addEventListener(ev, cancelHold));
-      b.addEventListener("contextmenu", e => e.preventDefault());
-
-      b.onclick = () => {
-        if(removed){ removed = false; return; }   // the hold already handled it
-        $("myName").value = n.name;
-        store.set("zonk.name", n.name);
-        $("homeErr").textContent = "";
-        box.querySelectorAll(".namechip").forEach(x => x.classList.remove("picked"));
-        b.classList.add("picked");
-      };
-      box.append(b);
-    });
-    $("knownWrap").style.display = "";
-  }catch(e){}
-}
 
 function listen(){
   if(unsub) unsub();
@@ -677,19 +645,65 @@ function endSolo(){
   render();
 }
 
-function startGame(soloOnly){
+const rollRef = () => ref(db, "table/rolloff");
+const d6 = () => 1 + Math.floor(Math.random() * 6);
+
+// Everyone rolls one die at once. Highest goes first. Anyone who ties rerolls
+// against just the players they tied with, so a tie only reorders that block.
+function startGame(){
   const players = (table && table.players) || {};
-  let order = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
-  if(soloOnly) order = order.filter(p => p === myId);
-  if(!order.length) return fail("lobbyErr","Sit down first.");
-  const names = {}, scores = {}, entered = {};
-  order.forEach(p => { names[p] = players[p].name || "Player"; scores[p] = 0; entered[p] = false; });
+  const ids = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
+  if(ids.length < 2) return fail("lobbyErr","You need at least two players.");
+  const names = {};
+  ids.forEach(p => { names[p] = players[p].name || "Player"; });
+  set(rollRef(), {
+    names, buckets: [{ pids: ids }], round: 1, rolls: {}, started: Date.now()
+  });
+}
+
+function myRoll(){
+  const r = table && table.rolloff;
+  if(!r || (r.rolls || {})[myId] !== undefined) return;
+  try{ if(navigator.vibrate) navigator.vibrate(20); }catch(e){}
+  set(ref(db, "table/rolloff/rolls/" + myId), d6()).catch(()=>{});
+}
+
+function rollFor(pids){
+  const patch = {};
+  pids.forEach(p => { patch[p] = d6(); });
+  update(ref(db, "table/rolloff/rolls"), patch).catch(()=>{});
+}
+
+// Deterministic given the dice, so two phones resolving at once agree.
+function resolveRollOff(r){
+  const rolls = r.rolls || {};
+  const buckets = [];
+  (r.buckets || []).forEach(b => {
+    const pids = b.pids || [];
+    if(pids.length < 2){ buckets.push({ pids }); return; }
+    const byVal = {};
+    pids.forEach(p => { const v = rolls[p]; (byVal[v] = byVal[v] || []).push(p); });
+    Object.keys(byVal).map(Number).sort((a,x) => x - a)
+      .forEach(v => buckets.push({ pids: byVal[v] }));
+  });
+  if(buckets.every(b => b.pids.length === 1)){
+    launchGame(buckets.map(b => b.pids[0]), r.names || {});
+    remove(rollRef()).catch(()=>{});
+  } else {
+    set(rollRef(), { names: r.names, buckets, round: (r.round || 1) + 1,
+                     rolls: {}, started: Date.now() }).catch(()=>{});
+  }
+}
+
+function launchGame(order, names){
+  const scores = {}, entered = {};
+  order.forEach(p => { scores[p] = 0; entered[p] = false; });
   set(gameRef(), {
-    order, names, scores, entered, turn: 0,
+    order, names, scores, entered, streak: {}, turn: 0,
     faces:[1,3,5,2,6,4], states:["tray","tray","tray","tray","tray","tray"],
     points:0, live:6, rolled:false, zonk:false, zonkText:"",
     finalRound:false, triggeredBy:null, over:false,
-    winner:null, quote:"", stamp: Date.now()
+    winner:null, quote:"", started: Date.now(), stamp: Date.now()
   });
 }
 
@@ -746,6 +760,7 @@ function canAdd(idx){
 function render(){
   if(!seated || (!table && !soloGame)) return;
   if(G()){ renderGame(); }
+  else if(table && table.rolloff){ renderRollOff(table.rolloff); }
   else { joiningNext = false; veil("veilJoin", false); renderLobby(); }
 }
 
@@ -763,10 +778,16 @@ function renderLobby(){
     list.append(row);
   });
   $("lobbySub").textContent = ids.length === 1
-    ? "Just you - start whenever" : ids.length + " players, in join order";
-  $("btnStart").style.display = ids.length > 1 ? "" : "none";
-  $("btnStart").textContent = "Start game with everyone";
-  $("lobbyErr").textContent = "";
+    ? "Nobody else yet - play solo, or wait for someone"
+    : "Turn order follows who sat down first";
+  $("lobbyCount").textContent = ids.length === 1
+    ? "Just you" : ids.length + " players ready";
+  $("btnStart").style.display = "";
+  $("btnStart").disabled = ids.length < 2;
+  $("btnStart").textContent = ids.length < 2
+    ? "Start game - need one more"
+    : "Start game with these " + ids.length;
+
 }
 
 // Nothing should sit half-played forever. Any phone still watching clears a
@@ -777,6 +798,89 @@ function reapStaleGame(g){
   if(soloGame){ endSolo(); }
   else remove(gameRef()).catch(()=>{});
   return true;
+}
+
+function miniDie(face, i){
+  const el = document.createElement("div");
+  el.className = "minidie " + COLORS[i % COLORS.length];
+  for(let k=0;k<9;k++){
+    const c = document.createElement("span");
+    if(PIPS[face].includes(k)) c.className = "pip";
+    el.append(c);
+  }
+  return el;
+}
+
+function renderRollOff(r){
+  show("rolloff");
+  if(Date.now() - (r.started || 0) > ROLLOFF_MAX_MS){
+    remove(rollRef()).catch(()=>{});
+    return;
+  }
+  const rolls = r.rolls || {};
+  const buckets = r.buckets || [];
+  const pending = [];
+  buckets.forEach(b => { if((b.pids || []).length > 1) pending.push(...b.pids); });
+  const waiting = pending.filter(p => rolls[p] === undefined);
+
+  $("rollRound").textContent = (r.round || 1) > 1
+    ? "Tie - round " + r.round : "";
+  $("rollSub").textContent = (r.round || 1) > 1
+    ? "Rolling again to break the tie"
+    : "Highest die goes first";
+
+  const list = $("rollList");
+  list.innerHTML = "";
+  let seat = 0;
+  buckets.forEach(b => {
+    const tied = (b.pids || []).length > 1;
+    (b.pids || []).forEach(pid => {
+      seat++;
+      const row = document.createElement("div");
+      row.className = "prow" + (tied && rolls[pid] !== undefined ? " tied" : "");
+      const rank = document.createElement("span");
+      rank.className = "rank";
+      rank.textContent = tied ? "-" : seat;
+      const nm = document.createElement("span");
+      nm.className = "nm";
+      nm.textContent = (r.names || {})[pid] + (pid === myId ? " (you)" : "");
+      row.append(rank, nm);
+      if(!tied){
+        const s2 = document.createElement("span");
+        s2.className = "waiting";
+        s2.textContent = "set";
+        row.append(s2);
+      } else if(rolls[pid] !== undefined){
+        row.append(miniDie(rolls[pid], seat - 1));
+      } else {
+        const w = document.createElement("span");
+        w.className = "waiting";
+        w.textContent = "waiting";
+        row.append(w);
+      }
+      list.append(row);
+    });
+  });
+
+  const mine = pending.indexOf(myId) >= 0;
+  const btn = $("btnRollOff");
+  btn.style.display = mine ? "" : "none";
+  btn.disabled = rolls[myId] !== undefined;
+  btn.textContent = rolls[myId] !== undefined ? "Rolled - waiting on others" : "Roll";
+
+  clearTimeout(rollNudgeTimer);
+  $("btnRollNudge").style.display = "none";
+  if(!waiting.length){
+    resolveRollOff(r);
+  } else if(rolls[myId] !== undefined || !mine){
+    const due = ROLLOFF_NUDGE_MS - (Date.now() - (r.started || 0));
+    if(due <= 0){
+      $("btnRollNudge").style.display = "";
+      $("btnRollNudge").onclick = () => rollFor(waiting);
+    } else {
+      rollNudgeTimer = setTimeout(() => render(), Math.max(1000, due));
+    }
+  }
 }
 
 function renderGame(){
@@ -915,6 +1019,19 @@ function renderGame(){
 function afterRender(g, myTurn){
   if(myTurn && !wasMyTurn && !g.over) alertMyTurn();
   wasMyTurn = myTurn;
+
+  clearTimeout(ccTimer);
+  clearTimeout(ccHideTimer);
+  if(g.rolled && !g.zonk && !g.over && ccFor !== g.stamp
+     && colorCoded(g.faces, g.states)){
+    ccFor = g.stamp;
+    const since = Date.now() - g.stamp;
+    ccTimer = setTimeout(() => {
+      veil("veilColor", true);
+      try{ if(navigator.vibrate) navigator.vibrate([50,50,50,50,50]); }catch(e){}
+      ccHideTimer = setTimeout(() => veil("veilColor", false), CC_HOLD_MS);
+    }, Math.max(0, CC_DELAY_MS - since));
+  }
 
   clearTimeout(zonkTimer);
   clearTimeout(zonkShowTimer);
@@ -1319,7 +1436,7 @@ async function openHall(){
 
 /* ---------- wiring ---------- */
 $("btnSit").onclick = sitDown;
-$("btnStart").onclick = () => startGame(false);
+$("btnStart").onclick = startGame;
 $("btnSolo").onclick = startSolo;
 $("btnLeave").onclick = leaveTable;
 $("btnAlerts").onclick = enableAlerts;
@@ -1327,6 +1444,8 @@ $("btnNope").onclick = () => veil("veilNope", false);
 $("btnJoinNext").onclick = () => { joiningNext = true; render(); };
 $("btnJoinLeave").onclick = () => { veil("veilJoin", false); leaveTable(); };
 $("btnSoloNow").onclick = startSolo;
+$("btnRollOff").onclick = myRoll;
+$("btnCancelRoll").onclick = () => remove(rollRef()).catch(()=>{});
 $("btnQuitSolo").onclick = () => { if(soloGame) endSolo(); };
 $("btnSkip").onclick = skipTurn;
 $("btnAbandon").onclick = abandonGame;
@@ -1365,7 +1484,6 @@ document.addEventListener("visibilitychange", () => {
 });
 
 /* come straight back after a refresh or a dropped connection */
-loadRoster();
 if(configured && store.get("zonk.seated") && store.get("zonk.name")) sitDown();
 </script>
 </body>
