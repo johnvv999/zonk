@@ -457,6 +457,7 @@ const CC_DELAY_MS = 2000;   // let the roll land first
 const CC_HOLD_MS = 2000;
 const ROLL_SHOW_MS = 1000;   // look at the losing roll first
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
+const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
 const ZONK_WORD_MS = 900;    // the word's spin-and-swell entrance
 const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
 // Shown instead of the word on a PTF. Tagged with VERSION so a redraw of the
@@ -1349,7 +1350,7 @@ function afterRender(g, myTurn){
     // too, so it is always the one that advances. Without this the computer's
     // zonks sat on screen for the fallback's extra four seconds.
     const mine = !!soloGame || g.order[g.turn] === myId;
-    const due = ROLL_SHOW_MS + ZONK_HOLD_MS + (mine ? 0 : 4000) - since;
+    const due = ROLL_SHOW_MS + (ptf ? PTF_HOLD_MS : ZONK_HOLD_MS) + (mine ? 0 : 4000) - since;
     zonkTimer = setTimeout(passTheDice, Math.max(0, due));
   } else {
     veil("veilZonk", false);
