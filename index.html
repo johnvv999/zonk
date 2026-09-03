@@ -21,6 +21,7 @@
   --brass:#D4A24C; --cream:#F2EDE4;
   --dice-red:#C4342B; --dice-green:#2E7D4F; --dice-white:#F2EDE4;
   --ink:#241C17; --muted:#B4A497; --danger:#E2574C; --live:#7FBF8A;
+  --zonk-yellow:#F7CE46;
   --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -193,7 +194,8 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .veil p{color:var(--muted);max-width:33ch;margin:0}
 .veil .big-btn{max-width:340px}
 .veil input[type=text]{max-width:340px}
-.zonk-word{color:var(--danger)}
+.veil h2.zonk-word{color:var(--zonk-yellow);font-size:22vw;
+  transform-origin:center;will-change:transform}
 .nope-word{color:var(--brass)}
 .rollout-word{color:var(--live)}
 .cc-r{color:var(--dice-red)}
@@ -437,6 +439,8 @@ const CC_DELAY_MS = 2000;   // let the roll land first
 const CC_HOLD_MS = 2000;
 const ROLL_SHOW_MS = 1000;   // look at the losing roll first
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
+const ZONK_WORD_MS = 900;    // the word's spin-and-swell entrance
+const ZONK_WORD_GAP = 20;    // how close it ends up to the screen edge, in px
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 // Cube rotation that swings a given face to the front. Pairs with the .f1-.f6
@@ -659,6 +663,33 @@ function alertMyTurn(){
   }catch(e){}
 }
 
+// The ZONK word tumbles in and swells until it very nearly spans the screen.
+// The end scale is measured rather than guessed: ZONK and PTF are different
+// widths, and the target is a distance from the screen edge, not a font size.
+// The resting transform is set first so the word stays there once the
+// animation is done, and so reduced-motion callers simply land on it.
+function playZonkWord(){
+  const el = $("zonkWord");
+  el.style.transform = "none";                       // measure it unscaled
+  const box = el.getBoundingClientRect();
+  if(!box.width || !box.height) return;
+  const doc = document.documentElement;
+  // Width is the target. The height term only bites on a short, wide window,
+  // where hitting the width alone would run the word off the top and bottom.
+  const to = Math.min((doc.clientWidth  - ZONK_WORD_GAP) / box.width,
+                      (doc.clientHeight - ZONK_WORD_GAP) / box.height);
+  if(!(to > 0)) return;
+  el.style.transform = "scale(" + to + ")";
+  let still = false;
+  try{ still = matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
+  if(still || !el.animate) return;
+  el.animate(
+    [{ transform: "scale(" + (to * 0.1) + ") rotate(-360deg)" },
+     { transform: "scale(" + to + ") rotate(0deg)" }],
+    { duration: ZONK_WORD_MS, easing: "cubic-bezier(.19,1,.3,1)" }
+  );
+}
+
 /* ---------- identity ---------- */
 let myId = store.get("zonk.id");
 if(!myId){
@@ -671,6 +702,7 @@ let table = null, unsub = null, seated = false;
 let mySel = new Set();
 let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
+let zonkAnimFor = null;
 let autoSkipTimer = null, quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
 let ccTimer = null, ccHideTimer = null, ccFor = null;
 
@@ -1188,14 +1220,22 @@ function afterRender(g, myTurn){
     // catches up to whichever beat is current.
     const since = Date.now() - g.stamp;
     const showIn = ROLL_SHOW_MS - since;
-    if(showIn <= 0){
-      veil("veilZonk", true);
-    } else {
-      veil("veilZonk", false);
-      zonkShowTimer = setTimeout(() => veil("veilZonk", true), showIn);
-    }
     const runs = (g.streak || {})[g.order[g.turn]] || 0;
     $("zonkWord").textContent = runs >= ZONK_STREAK_PTF ? "PTF" : "ZONK";
+    // afterRender runs on every render, so the entrance is keyed to the stamp -
+    // it plays once per zonk rather than restarting under it.
+    const reveal = () => {
+      veil("veilZonk", true);
+      if(zonkAnimFor === g.stamp) return;
+      zonkAnimFor = g.stamp;
+      playZonkWord();
+    };
+    if(showIn <= 0){
+      reveal();
+    } else {
+      veil("veilZonk", false);
+      zonkShowTimer = setTimeout(reveal, showIn);
+    }
     // The roller advances first. Every other phone holds a fallback timer, so a
     // reload or a dropped connection can never strand the game on this screen.
     // A solo game has no other phone - this device drives the computer's turn
