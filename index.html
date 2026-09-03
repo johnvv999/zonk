@@ -1216,7 +1216,10 @@ function afterRender(g, myTurn){
   $("btnAbandon").classList.remove("on");
   if(!g.over){
     const since = Date.now() - g.stamp;
-    if(!myTurn && g.order.length > 1){
+    // Both timers below exist for an absent human. In a solo game the other
+    // player is a computer this same device drives, so it is never absent -
+    // and "Abandon Game?" sits on screen throughout, so nothing is stranded.
+    if(!soloGame && !myTurn && g.order.length > 1){
       escTimer = setTimeout(() => $("btnSkip").classList.add("on"),
         Math.max(1500, IDLE_SKIP_MS - since));
       // Nobody should wait on an absent player. Watching phones stagger their
