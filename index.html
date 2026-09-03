@@ -440,7 +440,7 @@ const CC_HOLD_MS = 2000;
 const ROLL_SHOW_MS = 1000;   // look at the losing roll first
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const ZONK_WORD_MS = 900;    // the word's spin-and-swell entrance
-const ZONK_WORD_GAP = 20;    // how close it ends up to the screen edge, in px
+const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 // Cube rotation that swings a given face to the front. Pairs with the .f1-.f6
@@ -676,8 +676,8 @@ function playZonkWord(){
   const doc = document.documentElement;
   // Width is the target. The height term only bites on a short, wide window,
   // where hitting the width alone would run the word off the top and bottom.
-  const to = Math.min((doc.clientWidth  - ZONK_WORD_GAP) / box.width,
-                      (doc.clientHeight - ZONK_WORD_GAP) / box.height);
+  const to = Math.min((doc.clientWidth  - ZONK_WORD_GUTTER * 2) / box.width,
+                      (doc.clientHeight - ZONK_WORD_GUTTER * 2) / box.height);
   if(!(to > 0)) return;
   el.style.transform = "scale(" + to + ")";
   let still = false;
