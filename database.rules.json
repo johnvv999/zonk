@@ -2,28 +2,73 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "table": {
       ".read": true,
       ".write": true
     },
-
+    "roster": {
+      ".read": true,
+      "$player": {
+        ".write": true,
+        "name": {
+          ".validate": "newData.isString() && newData.val().length <= 14"
+        },
+        "last": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
     "archive": {
       ".read": true,
       ".indexOn": "finishedAt",
       "$entry": {
         ".write": "!data.exists() && newData.hasChildren(['finishedAt','winner','scores'])",
-        "winner":     { ".validate": "newData.isString() && newData.val().length <= 40" },
-        "quote":      { ".validate": "newData.isString() && newData.val().length <= 140" },
-        "finishedAt": { ".validate": "newData.isNumber()" },
+        "winner": {
+          ".validate": "newData.isString() && newData.val().length <= 40"
+        },
+        "quote": {
+          ".validate": "newData.isString() && newData.val().length <= 140"
+        },
+        "finishedAt": {
+          ".validate": "newData.isNumber()"
+        },
         "scores": {
           "$i": {
-            "name":  { ".validate": "newData.isString() && newData.val().length <= 14" },
-            "score": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-            "$other": { ".validate": false }
+            "name": {
+              ".validate": "newData.isString() && newData.val().length <= 14"
+            },
+            "score": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         },
-        "$other": { ".validate": false }
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "stats": {
+      ".read": true,
+      "$name": {
+        ".write": true,
+        "name": {
+          ".validate": "newData.isString() && newData.val().length <= 14"
+        },
+        "played": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "won": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     }
   }
