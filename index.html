@@ -347,7 +347,8 @@ const firebaseConfig = {
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
 const IDLE_SKIP_MS = 60000;
-const ZONK_HOLD_MS = 3000;
+const ROLL_SHOW_MS = 3000;   // look at the losing roll first
+const ZONK_HOLD_MS = 3000;   // then the ZONK screen
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const COLORS = ["red","red","white","white","green","green"];
@@ -486,7 +487,7 @@ $("myName").value = store.get("zonk.name") || "";
 let table = null, unsub = null, seated = false;
 let mySel = new Set();
 let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
-let zonkTimer = null, passedStamp = null, archived = false;
+let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
 let rolloutTimer = null, rolloutFor = null;
 
 const playersRef = () => ref(db, "table/players");
@@ -782,14 +783,28 @@ function afterRender(g, myTurn){
   if(myTurn && !wasMyTurn && !g.over) alertMyTurn();
   wasMyTurn = myTurn;
 
-  veil("veilZonk", !!g.zonk);
   clearTimeout(zonkTimer);
+  clearTimeout(zonkShowTimer);
   if(g.zonk){
+    // Hold on the dead roll so everyone can see it, then the ZONK screen, then
+    // pass. All three beats are measured from the shared stamp, so every phone
+    // shows the same thing at the same moment - and a phone that joins late
+    // catches up to whichever beat is current.
+    const since = Date.now() - g.stamp;
+    const showIn = ROLL_SHOW_MS - since;
+    if(showIn <= 0){
+      veil("veilZonk", true);
+    } else {
+      veil("veilZonk", false);
+      zonkShowTimer = setTimeout(() => veil("veilZonk", true), showIn);
+    }
     // The roller advances first. Every other phone holds a fallback timer, so a
     // reload or a dropped connection can never strand the game on this screen.
     const mine = g.order[g.turn] === myId;
-    const due = ZONK_HOLD_MS + (mine ? 0 : 4000) - (Date.now() - g.stamp);
+    const due = ROLL_SHOW_MS + ZONK_HOLD_MS + (mine ? 0 : 4000) - since;
     zonkTimer = setTimeout(passTheDice, Math.max(0, due));
+  } else {
+    veil("veilZonk", false);
   }
   if(g.over) renderWin(g); else veil("veilWin", false);
 
