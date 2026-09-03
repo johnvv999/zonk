@@ -73,12 +73,6 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   min-width:26px;text-align:center}
 .prow .waiting{color:#7E6E62;font-size:13px}
 .prow.tied{border-color:var(--brass)}
-.minidie{width:34px;height:34px;border-radius:8px;flex:none;display:grid;
-  grid-template:repeat(3,1fr)/repeat(3,1fr);gap:2px;padding:5px;
-  box-shadow:0 2px 0 rgba(0,0,0,.3)}
-.minidie .pip{border-radius:50%;background:var(--cream);align-self:center;
-  justify-self:center;width:6px;height:6px}
-.minidie.white .pip{background:var(--ink)}
 .plist{display:flex;flex-direction:column;gap:7px}
 .prow{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--felt);border:1px solid var(--edge);border-radius:10px}
 .prow .dot{width:9px;height:9px;border-radius:50%;background:var(--live);flex:none}
@@ -165,6 +159,10 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .die.sel .face,.die.pending .face{border-color:rgba(212,162,76,.85);
   box-shadow:inset 0 0 13px rgba(212,162,76,.32)}
 .die.pending,.die.kept{--size:42px;--half:21px;--pad:6px;--gap:2px;--rad:10px;--pipsz:7px}
+/* The roll-off die in the player list. One fixed tilt, and a touch less
+   shrink than the table dice since it has a whole row to sit in. */
+.die.mini{--size:34px;--half:17px;--pad:5px;--gap:2px;--rad:8px;--pipsz:6px;
+  --tilt:rotateX(-12deg) rotateY(14deg); --fit:.86}
 .die.kept{opacity:.86}
 /* No fill-mode: once the tumble ends the animated transform is dropped so
    .die.sel's lift can take over again. */
@@ -832,17 +830,11 @@ function launchGame(order, names){
 }
 
 /* ---------- rendering ---------- */
-function dieNode(i, face, state, small, interactive){
-  const el = document.createElement(interactive ? "button" : "div");
-  el.className = "die " + COLORS[i]
-    + (state === "kept" ? " kept" : "")
-    + (state === "sel" ? (small ? " pending" : " sel") : "");
-  // A resting tilt, varied by slot so six dice don't look stamped, but derived
-  // from the index so a die never jumps when the table re-renders.
-  el.style.setProperty("--tilt", "rotateX(" + (-15 + (i % 3) * 3)
-    + "deg) rotateY(" + (8 + (i % 4) * 3) + "deg)");
-  el.style.setProperty("--face-rot", FACE_ROT[face]);
-  // All six faces are built every time: the ones behind show through the glass.
+
+// All six faces are built every time: the ones behind show through the glass,
+// which is what sells it as a solid. Only the rolled face is marked .front, so
+// its pips can sit at full strength while the rest stay ghosted.
+function cubeFor(face){
   const cube = document.createElement("span");
   cube.className = "cube";
   for(let f=1; f<=6; f++){
@@ -855,7 +847,20 @@ function dieNode(i, face, state, small, interactive){
     }
     cube.append(fc);
   }
-  el.append(cube);
+  return cube;
+}
+
+function dieNode(i, face, state, small, interactive){
+  const el = document.createElement(interactive ? "button" : "div");
+  el.className = "die " + COLORS[i]
+    + (state === "kept" ? " kept" : "")
+    + (state === "sel" ? (small ? " pending" : " sel") : "");
+  // A resting tilt, varied by slot so six dice don't look stamped, but derived
+  // from the index so a die never jumps when the table re-renders.
+  el.style.setProperty("--tilt", "rotateX(" + (-15 + (i % 3) * 3)
+    + "deg) rotateY(" + (8 + (i % 4) * 3) + "deg)");
+  el.style.setProperty("--face-rot", FACE_ROT[face]);
+  el.append(cubeFor(face));
   if(interactive){
     el.setAttribute("aria-pressed", String(state==="sel"));
     el.setAttribute("aria-label", "Die showing " + face
@@ -938,14 +943,15 @@ function reapStaleGame(g){
   return true;
 }
 
+// The roll-off die. Same cube as the table dice, just small - and with one
+// fixed tilt rather than a per-slot one, since these sit in a vertical list
+// where varying the angle row to row reads as wobble rather than variety.
 function miniDie(face, i){
   const el = document.createElement("div");
-  el.className = "minidie " + COLORS[i % COLORS.length];
-  for(let k=0;k<9;k++){
-    const c = document.createElement("span");
-    if(PIPS[face].includes(k)) c.className = "pip";
-    el.append(c);
-  }
+  el.className = "die mini " + COLORS[i % COLORS.length];
+  el.style.setProperty("--face-rot", FACE_ROT[face]);
+  el.setAttribute("aria-label", "Die showing " + face);
+  el.append(cubeFor(face));
   return el;
 }
 
