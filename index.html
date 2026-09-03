@@ -883,7 +883,7 @@ function endSolo(){
   wasMyTurn = false;
   veil("veilWin", false);
   // Only take a seat under a name they actually gave. Inventing one leaves a
-  // "Player" sitting at the table that nobody can account for or clear.
+  // stranger sitting at the table that nobody can account for or clear.
   if(!name){
     seated = false;
     store.del("zonk.seated");
@@ -905,7 +905,7 @@ function startGame(){
   const ids = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
   if(ids.length < 2) return;   // the button is disabled below two anyway
   const names = {};
-  ids.forEach(p => { names[p] = players[p].name || "Player"; });
+  ids.forEach(p => { names[p] = players[p].name || ""; });
   set(rollRef(), {
     names, buckets: [{ pids: ids }], round: 1, rolls: {}, started: Date.now()
   });
@@ -1044,7 +1044,7 @@ function renderLobby(){
     const row = document.createElement("div");
     row.className = "prow";
     row.innerHTML = "<span class='dot'></span><span class='nm'></span><span class='tag'></span>";
-    row.querySelector(".nm").textContent = players[id].name || "Player";
+    row.querySelector(".nm").textContent = players[id].name || "";
     row.querySelector(".tag").textContent = id === myId ? "you" : "";
     list.append(row);
   });
@@ -1222,7 +1222,7 @@ function renderGame(){
     // Between turns the table is bare - no dice from the last player's roll.
     const note = document.createElement("div");
     note.className = "turn-note";
-    note.textContent = (g.names[active] || "Player") + "'s turn";
+    note.textContent = (g.names[active] || "") + "'s turn";
     if(g.points){
       const sub = document.createElement("small");
       sub.textContent = "Holding " + g.points.toLocaleString();
@@ -1640,7 +1640,7 @@ async function postQuote(text){
 async function bumpStats(g){
   if(soloGame || !g.order || g.order.length < 2) return;
   for(const pid of g.order){
-    const nm = g.names[pid] || "Player";
+    const nm = g.names[pid] || "";
     const k = nameKey(nm);
     try{
       const snap = await get(ref(db, "stats/" + k));
@@ -1661,7 +1661,7 @@ async function showStats(g){
   }
   const rows = [];
   for(const pid of g.order){
-    const nm = g.names[pid] || "Player";
+    const nm = g.names[pid] || "";
     try{
       const snap = await get(ref(db, "stats/" + nameKey(nm)));
       rows.push(snap.exists() ? snap.val() : { name: nm, played: 0, won: 0 });
@@ -1691,7 +1691,7 @@ async function saveToHall(g){
       quote: (g.quote || "").slice(0,140),
       scores: g.order.slice()
         .sort((a,b) => (g.scores[b]||0) - (g.scores[a]||0))
-        .map(p => ({ name: (g.names[p]||"Player").slice(0,14), score: g.scores[p]||0 }))
+        .map(p => ({ name: (g.names[p]||"").slice(0,14), score: g.scores[p]||0 }))
     });
     await bumpStats(g);
   }catch(e){
