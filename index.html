@@ -242,10 +242,9 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <p id="lobbyCount"></p>
   </div>
   <div class="plist" id="lobbyList"></div>
-  <button class="big-btn quiet" id="btnAlerts">Turn on turn alerts</button>
-  <div class="err" id="lobbyErr"></div>
+  <button class="big-btn quiet" id="btnAlerts">Turn on alerts?</button>
   <button class="big-btn" id="btnStart">Start game</button>
-  <button class="big-btn quiet" id="btnSolo">Play solo</button>
+  <button class="big-btn quiet" id="btnSolo">Play solo?</button>
   <div style="display:flex;justify-content:center;gap:6px">
     <button class="ghost" id="openRules2">Rules</button>
     <button class="ghost" id="btnLeave">Leave the table</button>
@@ -388,7 +387,7 @@ const firebaseConfig = {
 };
 /* ================= nothing below needs editing ================= */
 
-const VERSION = "20260903-1253";
+const VERSION = "20260903-1259";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
 const IDLE_SKIP_MS = 60000;    // manual skip link appears
@@ -653,7 +652,7 @@ const d6 = () => 1 + Math.floor(Math.random() * 6);
 function startGame(){
   const players = (table && table.players) || {};
   const ids = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
-  if(ids.length < 2) return fail("lobbyErr","You need at least two players.");
+  if(ids.length < 2) return;   // the button is disabled below two anyway
   const names = {};
   ids.forEach(p => { names[p] = players[p].name || "Player"; });
   set(rollRef(), {
