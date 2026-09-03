@@ -872,14 +872,26 @@ function startSolo(){
 }
 
 function endSolo(){
+  // Whatever name they were playing under, before the game is thrown away.
+  // "You" is startSolo's own display placeholder, never a name to sit under.
+  const played = soloGame && soloGame.names ? soloGame.names[myId] : null;
+  const name = store.get("zonk.name") || (played && played !== "You" ? played : "");
   cpuBusy = false;
   soloGame = null;
   dropSolo();
   archived = false;
   wasMyTurn = false;
   veil("veilWin", false);
-  set(ref(db, "table/players/" + myId),
-      { name: store.get("zonk.name") || "Player", joined: Date.now() }).catch(()=>{});
+  // Only take a seat under a name they actually gave. Inventing one leaves a
+  // "Player" sitting at the table that nobody can account for or clear.
+  if(!name){
+    seated = false;
+    store.del("zonk.seated");
+    show("home");
+    return;
+  }
+  store.set("zonk.name", name);
+  set(ref(db, "table/players/" + myId), { name, joined: Date.now() }).catch(()=>{});
   render();
 }
 
