@@ -134,6 +134,14 @@ bottom. Skipping banks nothing for that player and moves on.
 A player who reloads or reconnects rejoins their game automatically — their
 identity is stored on their device.
 
+A phone that loses signal, force-quits or goes flat never fires its disconnect
+handler, so its seat would otherwise sit in the lobby forever. Each seated phone
+marks itself alive every ten minutes, and any phone with the app open clears
+seats that have gone quiet for an hour. A phone never clears its own seat, so a
+table nobody has open is left alone until somebody opens it — which is when a
+stale lobby would be noticed anyway. The mark is separate from `joined`, since
+turn order sorts on that.
+
 A solo game is kept on the device too, so leaving the app and coming back drops
 you where you left off rather than at the opening screen. It is discarded once
 the game ends, or after the same one-hour limit that clears an abandoned table.

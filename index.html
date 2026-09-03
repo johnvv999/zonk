@@ -451,6 +451,8 @@ const TURN_LIMIT_MS = 120000;  // turn is skipped automatically
 const ZONK_STREAK_PTF = 3;
 const QUOTE_WAIT_MS = 30000;      // winner has this long to start typing
 const GAME_MAX_MS = 60 * 60 * 1000;  // an unfinished game is cleared after an hour
+const SEAT_IDLE_MS = 60 * 60 * 1000; // a seat silent this long is cleared
+const SEEN_EVERY_MS = 10 * 60 * 1000; // how often a seated phone says it is still here
 const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
 const ROLLOFF_MAX_MS = 5 * 60 * 1000;
 const CC_DELAY_MS = 2000;   // let the roll land first
@@ -800,6 +802,7 @@ async function sitDown(){
     joined: players[myId] ? players[myId].joined : Date.now()
   });
   try{ onDisconnect(ref(db, "table/players/" + myId)).remove(); }catch(e){}
+  touchSeat();
 
   seated = true;
   store.set("zonk.seated", "1");
@@ -1069,6 +1072,31 @@ function renderLobby(){
 
 // Nothing should sit half-played forever. Any phone still watching clears a
 // game that has run past the limit, solo or shared.
+/* A phone that loses signal, force-quits, or goes flat never fires its
+   onDisconnect, and its seat sits in the lobby forever. So a seated phone
+   marks itself alive now and then, and any phone with the app open clears
+   seats that have gone quiet for an hour.
+
+   The mark is a separate field: `joined` is what turn order sorts on, so it
+   has to stay put. And a phone never clears its own seat - it is plainly
+   here - which also means a table nobody has open is left alone until
+   somebody opens it. */
+function touchSeat(){
+  if(!configured || !seated || soloGame) return;
+  set(ref(db, "table/players/" + myId + "/seen"), Date.now()).catch(()=>{});
+}
+
+function reapStaleSeats(){
+  if(!configured || !table || soloGame) return;
+  const players = table.players || {};
+  const now = Date.now();
+  Object.keys(players).forEach(id => {
+    if(id === myId) return;
+    const last = players[id].seen || players[id].joined || 0;
+    if(now - last > SEAT_IDLE_MS) remove(ref(db, "table/players/" + id)).catch(()=>{});
+  });
+}
+
 function reapStaleGame(g){
   if(!g || g.over) return false;
   if(Date.now() - (g.started || g.stamp || 0) < GAME_MAX_MS) return false;
@@ -1789,7 +1817,8 @@ async function checkForUpdate(){
 }
 checkForUpdate();
 setInterval(checkForUpdate, 5 * 60 * 1000);
-setInterval(() => { if(G()) reapStaleGame(G()); }, 60 * 1000);
+setInterval(() => { if(G()) reapStaleGame(G()); reapStaleSeats(); }, 60 * 1000);
+setInterval(touchSeat, SEEN_EVERY_MS);
 document.addEventListener("visibilitychange", () => {
   if(document.visibilityState === "visible") checkForUpdate();
 });
