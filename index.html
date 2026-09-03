@@ -450,7 +450,9 @@ const ROLL_SHOW_MS = 1000;   // look at the losing roll first
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const ZONK_WORD_MS = 900;    // the word's spin-and-swell entrance
 const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
-const PTF_ART = "ptf.webp";  // shown instead of the word on a PTF
+// Shown instead of the word on a PTF. Tagged with VERSION so a redraw of the
+// art is picked up too - the filename alone would sit in caches.
+const PTF_ART = "ptf.webp?v=" + VERSION;
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 // Cube rotation that swings a given face to the front. Pairs with the .f1-.f6
