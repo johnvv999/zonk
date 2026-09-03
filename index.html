@@ -387,7 +387,7 @@ const firebaseConfig = {
 };
 /* ================= nothing below needs editing ================= */
 
-const VERSION = "20260903-1259";
+const VERSION = "20260903-1348";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
 const IDLE_SKIP_MS = 60000;    // manual skip link appears
@@ -399,6 +399,12 @@ const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
 const ROLLOFF_MAX_MS = 5 * 60 * 1000;
 const CC_DELAY_MS = 2000;   // let the roll land first
 const CC_HOLD_MS = 2000;
+const COMPUTER = "computer";
+const AI_ROLL_MS = 900;      // pause before it rolls
+const AI_THINK_MS = 1000;    // pause before it picks
+const AI_COMMIT_MS = 1000;   // how long its picks sit visible
+const AI_ID = "computer";
+const AI_PAUSE_MS = 1100;    // long enough to watch it play
 const ROLL_SHOW_MS = 1000;   // look at the losing roll first
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const ABANDON_MS = 300000;
@@ -476,6 +482,79 @@ function colorCoded(faces, states){
   if(groups.length !== 3) return false;
   if(!groups.every(g => g.length === 2)) return false;
   return groups.every(g => COLORS[g[0]] === COLORS[g[1]]);
+}
+
+/* ---------------- the Computer ----------------
+   Only ever runs inside a solo game, where the whole game state is local, so
+   it drives the same doRoll / doBank the player uses. Deliberately paced with
+   pauses so you can watch it think, pick, and push its luck.
+   ---------------------------------------------------------- */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Every legal keep from the dice in play, scored on points plus a nudge toward
+// leaving dice on the table (fewer dice means a much higher chance of zonking).
+function bestKeep(faces, idxs){
+  let best = null;
+  for(let m = 1; m < (1 << idxs.length); m++){
+    const pick = [];
+    for(let b = 0; b < idxs.length; b++) if(m & (1 << b)) pick.push(idxs[b]);
+    const sc = scoreSet(pick.map(i => faces[i]));
+    if(sc === null) continue;
+    const left = idxs.length - pick.length;
+    const val = sc + (left === 0 ? 400 : 25 * left);
+    if(!best || val > best.val) best = { pick, sc, left, val };
+  }
+  return best;
+}
+
+// Zonk odds climb steeply as dice leave the table: 6 dice ~2%, 3 ~28%, 2 ~44%,
+// 1 ~66%. So the fewer dice left, the less it takes to make stopping worthwhile.
+const CPU_CAP = { 1: 350, 2: 450, 3: 700, 4: 1200, 5: 2000 };
+
+function cpuShouldRoll(g, best, total){
+  if(best.left === 0) return true;                       // hot dice, free reroll
+  if(total < (g.entered[CPU] ? 300 : 500)) return true;  // can't stop anyway
+  const human = g.order.find(p => p !== CPU);
+  const behind = (g.scores[human] || 0) - (g.scores[CPU] || 0);
+  const chase = behind > 2500 ? 250 : 0;                 // press harder when losing
+  return total < (CPU_CAP[best.left] || 0) + chase;
+}
+
+async function cpuTurn(){
+  if(cpuBusy) return;
+  cpuBusy = true;
+  try{
+    while(true){
+      let g = G();
+      if(!g || !soloGame || g.over || g.zonk) break;
+      if(g.order[g.turn] !== CPU) break;
+
+      if(!g.rolled){
+        await sleep(850);
+        if(!soloGame || G() !== g) break;
+        mySel.clear();
+        doRoll();
+        await sleep(650);
+        continue;
+      }
+
+      const idxs = g.states.map((st,i) => st !== "kept" ? i : -1).filter(i => i >= 0);
+      const best = bestKeep(g.faces, idxs);
+      if(!best) break;                       // nothing scores; the zonk flow has it
+
+      await sleep(550);
+      if(!soloGame || G() !== g) break;
+      mySel = new Set(best.pick);
+      render();                              // show the pick land below the line
+
+      await sleep(900);
+      if(!soloGame || G() !== g) break;
+      if(cpuShouldRoll(g, best, g.points + best.sc)) doRoll(); else doBank();
+      await sleep(650);
+    }
+  } finally {
+    cpuBusy = false;
+  }
 }
 
 /* ---------- alerts ---------- */
@@ -558,11 +637,16 @@ let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
 let autoSkipTimer = null, quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
 let ccTimer = null, ccHideTimer = null, ccFor = null;
+let aiTimer = null, aiPlan = null, aiStaged = null;
+let aiTimer = null, aiFor = null;
+let cpuTimer = null, cpuKey = null;
 
 // A solo game lives only in this variable - it never touches the shared table,
 // so any number of people can play solo at once while a group game runs.
 let soloGame = null;
 const G = () => soloGame || (table && table.game) || null;
+const CPU = "computer";
+let cpuBusy = false;
 let rolloutTimer = null, rolloutFor = null;
 
 const playersRef = () => ref(db, "table/players");
@@ -612,7 +696,8 @@ function leaveTable(){
   seated = false; table = null;
   store.del("zonk.seated");
   veil("veilWin", false); veil("veilZonk", false);
-  wasMyTurn = false; archived = false; joiningNext = false; soloGame = null; mySel.clear();
+  wasMyTurn = false; archived = false; joiningNext = false; soloGame = null;
+  cpuBusy = false; mySel.clear();
   show("home");
 }
 
@@ -620,8 +705,11 @@ function startSolo(){
   const name = (table && table.players && table.players[myId] && table.players[myId].name)
              || store.get("zonk.name") || "You";
   soloGame = {
-    order: [myId], names: {[myId]: name}, scores: {[myId]: 0},
-    entered: {[myId]: false}, streak: {}, turn: 0,
+    order: [myId, CPU],
+    names: {[myId]: name, [CPU]: "Computer"},
+    scores: {[myId]: 0, [CPU]: 0},
+    entered: {[myId]: false, [CPU]: false},
+    streak: {}, turn: 0,
     faces: [1,3,5,2,6,4], states: ["tray","tray","tray","tray","tray","tray"],
     points: 0, live: 6, rolled: false, zonk: false,
     finalRound: false, triggeredBy: null, over: false,
@@ -630,11 +718,14 @@ function startSolo(){
   // Step away from the shared table so a group game can't draft you mid-solo.
   remove(ref(db, "table/players/" + myId)).catch(()=>{});
   joiningNext = false;
+  cpuBusy = false;
   veil("veilJoin", false);
   render();
 }
 
 function endSolo(){
+  clearTimeout(cpuTimer);
+  cpuKey = null;
   soloGame = null;
   archived = false;
   wasMyTurn = false;
@@ -1019,6 +1110,12 @@ function afterRender(g, myTurn){
   if(myTurn && !wasMyTurn && !g.over) alertMyTurn();
   wasMyTurn = myTurn;
 
+  cpuTick();
+
+  aiThink(g);
+
+  if(soloGame && !g.over && g.order[g.turn] === CPU) cpuTurn();
+
   clearTimeout(ccTimer);
   clearTimeout(ccHideTimer);
   if(g.rolled && !g.zonk && !g.over && ccFor !== g.stamp
@@ -1129,6 +1226,86 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   };
 }
 
+/* ---------- the Computer ----------
+   One-ply expected value. For every legal keep it works out what the pot would
+   be, then compares stopping there against the value of rolling on: the chance
+   of surviving times the pot plus a typical roll's gain. It takes the best
+   option, so it presses its luck on six fresh dice and gets cautious on two.
+   The entry rule binds it too - under 500 it has no choice but to keep rolling.
+   ------------------------------------------------------------------------- */
+const P_ZONK   = [0, 0.667, 0.444, 0.278, 0.159, 0.077, 0.023];
+const EXP_GAIN = [0, 55, 130, 200, 260, 320, 380];
+
+function bestKeep(g){
+  const inPlay = [];
+  g.states.forEach((st,i) => { if(st !== "kept") inPlay.push(i); });
+  const n = inPlay.length;
+  const score = g.scores[COMPUTER] || 0;
+  const entered = !!g.entered[COMPUTER];
+  let best = null;
+  for(let m = 1; m < (1 << n); m++){
+    const idx = [];
+    for(let b = 0; b < n; b++) if(m & (1 << b)) idx.push(inPlay[b]);
+    const gain = scoreSet(idx.map(i => g.faces[i]));
+    if(gain === null) continue;
+    const pot = g.points + gain;
+    const left = n - idx.length;
+    let value, action;
+    if(left === 0){
+      value = pot + EXP_GAIN[6] * (1 - P_ZONK[6]);   // hot dice, no choice
+      action = "roll";
+    } else {
+      const rollOn = (1 - P_ZONK[left]) * (pot + EXP_GAIN[left]);
+      const mayStop = pot >= (entered ? 300 : 500);
+      const wouldWin = score + pot >= TARGET;
+      if(mayStop && (wouldWin || pot >= rollOn)){ value = pot; action = "bank"; }
+      else { value = rollOn; action = "roll"; }
+    }
+    if(!best || value > best.value) best = { idx, gain, value, action };
+  }
+  return best;
+}
+
+const aiTurn = g => !!soloGame && !g.over && g.order[g.turn] === COMPUTER;
+
+function aiRoll(){
+  if(!soloGame || !aiTurn(soloGame)) return;
+  mySel.clear();
+  doRoll();
+}
+
+function aiChoose(){
+  const g = soloGame;
+  if(!g || !aiTurn(g) || !g.rolled || g.zonk) return;
+  const plan = bestKeep(g);
+  if(!plan) return;
+  mySel = new Set(plan.idx);
+  aiPlan = plan;
+  aiStaged = g.stamp;
+  render();                                  // its picks show, ringed
+  aiTimer = setTimeout(aiCommit, AI_COMMIT_MS);
+}
+
+function aiCommit(){
+  const g = soloGame, plan = aiPlan;
+  aiPlan = null; aiStaged = null;
+  if(!g || !plan || !aiTurn(g)) return;
+  if(plan.action === "bank") doBank(); else doRoll();
+}
+
+function aiTick(g){
+  if(!aiTurn(g) || g.zonk){
+    clearTimeout(aiTimer);
+    aiPlan = null; aiStaged = null;
+    return;
+  }
+  if(aiStaged === g.stamp) return;           // picks already on screen
+  clearTimeout(aiTimer);
+  aiTimer = g.rolled
+    ? setTimeout(aiChoose, AI_THINK_MS)
+    : setTimeout(aiRoll, AI_ROLL_MS);
+}
+
 /* ---------- actions: only the active player writes ---------- */
 let toastTimer = null;
 function toast(msg){
@@ -1183,13 +1360,14 @@ function doRoll(){
 
   const inPlay = states.map((st,i) => st!=="kept" ? faces[i] : 0).filter(Boolean);
   const zonked = !anyScore(inPlay);
+  const roller = g.order[g.turn];
   const streak = Object.assign({}, g.streak || {});
-  if(zonked) streak[myId] = (streak[myId] || 0) + 1;
+  if(zonked) streak[roller] = (streak[roller] || 0) + 1;
 
   writeGame(Object.assign({}, g, {
     faces, states, points, live, rolled: true, zonk: zonked, streak,
     zonkText: zonked ? (points
-      ? g.names[myId] + " loses " + points.toLocaleString() + " from this turn."
+      ? g.names[roller] + " loses " + points.toLocaleString() + " from this turn."
       : "Nothing scored. Nothing lost.") : "",
     stamp: Date.now()
   }), "roll");
@@ -1282,6 +1460,127 @@ function abandonGame(){
   remove(gameRef()).catch(()=>{});
 }
 
+/* ---------- the Computer ---------- */
+
+// Best complete keep from what's in the tray: highest score, and among equals
+// the one using fewest dice so more stay live.
+function cpuChoose(g){
+  const tray = [];
+  g.states.forEach((st,i) => { if(st !== "kept") tray.push(i); });
+  let best = null;
+  for(let m = 1; m < (1 << tray.length); m++){
+    const idx = [];
+    for(let b = 0; b < tray.length; b++) if(m & (1 << b)) idx.push(tray[b]);
+    const sc = scoreSet(idx.map(i => g.faces[i]));
+    if(sc === null) continue;
+    if(!best || sc > best.score || (sc === best.score && idx.length < best.idx.length))
+      best = { score: sc, idx };
+  }
+  return best;
+}
+
+// Chance of a dead roll, and the average haul from a live one, by dice count.
+const CPU_ZONK = {1:0.667, 2:0.444, 3:0.278, 4:0.159, 5:0.077, 6:0.023};
+const CPU_GAIN = {1:75, 2:135, 3:200, 4:270, 5:340, 6:420};
+
+function cpuShouldStop(g, pick){
+  const me = g.order[g.turn];
+  const running = g.points + pick.score;
+  const left = g.live - pick.idx.length;
+  if(left === 0) return false;                                  // hot dice, no choice
+  if(running < (g.entered[me] ? 300 : 500)) return false;        // can't stop yet
+  if((g.scores[me] || 0) + running >= TARGET) return true;       // that's the game
+  // Roll on while the expected gain still beats what's on the table.
+  const p = CPU_ZONK[left], gain = CPU_GAIN[left];
+  return running >= (1 - p) * gain / p;
+}
+
+function cpuTick(){
+  const g = soloGame;
+  if(!g || g.over || g.zonk || g.order[g.turn] !== CPU_ID) return;
+  const key = g.stamp + ":" + (g.rolled ? "r" : "n");
+  if(cpuKey === key) return;
+  cpuKey = key;
+  clearTimeout(cpuTimer);
+  cpuTimer = setTimeout(() => {
+    const gg = soloGame;
+    if(!gg || gg.over || gg.zonk || gg.order[gg.turn] !== CPU_ID) return;
+    if(!gg.rolled){ mySel.clear(); return doRoll(); }
+    const pick = cpuChoose(gg);
+    if(!pick) return;
+    mySel = new Set(pick.idx);
+    render();                                   // let the dice drop into view
+    setTimeout(() => {
+      const g3 = soloGame;
+      if(!g3 || g3.over || g3.zonk || g3.order[g3.turn] !== CPU_ID) return;
+      if(cpuShouldStop(g3, pick)) doBank(); else doRoll();
+    }, CPU_PICK_MS);
+  }, CPU_THINK_MS);
+}
+
+/* ---------- the Computer ---------- */
+
+// Every legal keep from the dice in play, best score first, and among equal
+// scores the one that uses the fewest dice so more are left to roll.
+function bestKeep(g, trayIdx){
+  let pick = null;
+  for(let m = 1; m < (1 << trayIdx.length); m++){
+    const idx = [];
+    for(let b = 0; b < trayIdx.length; b++) if(m & (1 << b)) idx.push(trayIdx[b]);
+    const sc = scoreSet(idx.map(i => g.faces[i]));
+    if(sc === null) continue;
+    if(!pick || sc > pick.score || (sc === pick.score && idx.length < pick.idx.length))
+      pick = { idx, score: sc };
+  }
+  return pick;
+}
+
+// Chance of a zonk by dice left: 1->66%, 2->44%, 3->28%, 4->16%, 5->8%, 6->2%.
+// The caps below are the turn totals it won't risk at each of those.
+const AI_CAP = { 1: 300, 2: 450, 3: 750, 4: 1200, 5: 2000, 6: 3000 };
+
+function aiShouldBank(g, left, total){
+  const mine = (g.scores[AI_ID] || 0) + total;
+  if(mine >= TARGET) return true;                 // banking wins outright
+  const rivals = g.order.filter(p => p !== AI_ID).map(p => g.scores[p] || 0);
+  const leader = rivals.length ? Math.max.apply(null, rivals) : 0;
+  if(g.finalRound && mine <= leader) return false; // a losing total is no total
+  const chasing = g.finalRound || leader >= TARGET - 1500;
+  const cap = AI_CAP[left] || 300;
+  return total >= (chasing ? cap * 2 : cap);
+}
+
+function aiThink(g){
+  if(!soloGame || !g || g.over || g.zonk) return;
+  if(g.order[g.turn] !== AI_ID) return;
+  const key = g.stamp + "|" + (g.rolled ? 1 : 0);
+  if(aiFor === key) return;                        // already queued this position
+  aiFor = key;
+  clearTimeout(aiTimer);
+  aiTimer = setTimeout(aiMove, AI_PAUSE_MS);
+}
+
+function aiMove(){
+  const g = G();
+  if(!soloGame || !g || g.over || g.zonk || g.order[g.turn] !== AI_ID) return;
+
+  if(!g.rolled){ mySel.clear(); return doRoll(); }
+
+  const trayIdx = [];
+  g.states.forEach((st,i) => { if(st !== "kept") trayIdx.push(i); });
+  const pick = bestKeep(g, trayIdx);
+  if(!pick) return;                                // nothing legal: the zonk path owns this
+
+  mySel = new Set(pick.idx);
+  const left = trayIdx.length - pick.idx.length;
+  const total = g.points + pick.score;
+  const floor = g.entered[AI_ID] ? 300 : 500;
+
+  if(left === 0) return doRoll();                  // hot dice, no choice
+  if(total >= floor && aiShouldBank(g, left, total)) return doBank();
+  return doRoll();
+}
+
 /* ---------- endgame + archive ---------- */
 function renderWin(g){
   veil("veilWin", true);
@@ -1304,9 +1603,11 @@ function renderWin(g){
   showStats(g);
 
   const hasQuote = !!(g.quote && g.quote.trim());
-  const needQuote = iWon && !hasQuote;
+  // No victory line in solo - there's nobody to say it to, and a solo win
+  // doesn't go in the hall of fame or the win/played record either.
+  const needQuote = iWon && !hasQuote && !soloGame;
   $("winQuote").textContent = hasQuote ? '"' + g.quote + '"'
-    : (iWon ? "" : "Waiting on the victory line...");
+    : ((iWon || soloGame) ? "" : "Waiting on the victory line...");
   $("quoteInput").style.display = needQuote ? "" : "none";
   $("quoteNote").style.display = needQuote ? "" : "none";
   $("quoteNote").textContent = needQuote
@@ -1333,7 +1634,7 @@ async function postQuote(text){
 // One row per name, so a record survives the shortcut button being deleted.
 // Solo games are excluded - a one-player win isn't worth counting.
 async function bumpStats(g){
-  if(!g.order || g.order.length < 2) return;
+  if(soloGame || !g.order || g.order.length < 2) return;
   for(const pid of g.order){
     const nm = g.names[pid] || "Player";
     const k = nameKey(nm);
@@ -1351,7 +1652,7 @@ async function bumpStats(g){
 
 async function showStats(g){
   const head = $("statsHead"), box = $("statsTable");
-  if(!g.order || g.order.length < 2){
+  if(soloGame || !g.order || g.order.length < 2){
     head.style.display = "none"; box.innerHTML = ""; return;
   }
   const rows = [];
@@ -1376,6 +1677,7 @@ async function showStats(g){
 }
 
 async function saveToHall(g){
+  if(soloGame) return;
   if(archived) return;
   archived = true;
   try{
