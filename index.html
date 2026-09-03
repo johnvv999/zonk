@@ -893,6 +893,11 @@ function endSolo(){
   }
   store.set("zonk.name", name);
   set(ref(db, "table/players/" + myId), { name, joined: Date.now() }).catch(()=>{});
+  // render() bails while both the table and the game are missing, which would
+  // leave the finished game sitting on screen. An empty table renders as an
+  // empty lobby, and the subscription fills it in a moment later.
+  if(configured && !unsub) listen();
+  if(!table) table = {};
   render();
 }
 
@@ -1793,9 +1798,11 @@ document.addEventListener("visibilitychange", () => {
 const resumed = restoreSolo();
 if(resumed){
   // Straight back into the solo game, without sitting down at the shared table -
-  // startSolo deliberately stepped away from it.
+  // startSolo deliberately stepped away from it. Still listen to the table
+  // though: leaving the solo game drops you back into the lobby, which needs it.
   seated = true;
   soloGame = resumed;
+  if(configured) listen();
   render();
 } else if(configured && store.get("zonk.seated") && store.get("zonk.name")){
   sitDown();
