@@ -182,8 +182,8 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <p class="tagline">Six dice, one table, first to ten thousand.</p>
   </div>
   <div id="configWarn" class="banner" style="display:none">
-    Firebase isn't configured yet. Open <b>index.html</b>, find the FIREBASE CONFIG block near the
-    top of the script, and paste in the config from your Firebase console.
+    Can't reach the database. Check the FIREBASE CONFIG block near the top of the script,
+    and that the Realtime Database rules have been published.
   </div>
   <div>
     <label for="myName">Your name</label>
@@ -241,6 +241,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 <div class="veil" id="veilZonk">
   <h2 class="zonk-word">ZONK</h2>
   <p id="zonkText"></p>
+  <button class="big-btn quiet" id="btnZonkGo" style="max-width:340px">Pass the dice</button>
 </div>
 
 <div class="veil" id="veilWin">
@@ -297,18 +298,19 @@ import { getDatabase, ref, set, get, update, remove, onValue, push,
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 /* ===============================================================
-   FIREBASE CONFIG - paste yours here. Firebase console ->
-   Project settings -> Your apps -> Web app -> SDK setup -> Config.
-   Keep databaseURL; that is the Realtime Database, not Firestore.
+   FIREBASE CONFIG - project zonk-255c6, already filled in.
+   Only change this if you move the game to a different Firebase
+   project. These keys are public by design; the Realtime Database
+   rules are what actually protect the data.
    =============================================================== */
 const firebaseConfig = {
-  apiKey:            "AIzaSy...",                                  // copy from console
+  apiKey:            "AIzaSyDwtJStc25il_4nEI0_vpSKGu5nomw3iUQ",
   authDomain:        "zonk-255c6.firebaseapp.com",
   databaseURL:       "https://zonk-255c6-default-rtdb.firebaseio.com",
   projectId:         "zonk-255c6",
   storageBucket:     "zonk-255c6.firebasestorage.app",
-  messagingSenderId: "1097565311165",
-  appId:             "1:1097565311165:web:..."                     // scroll down for this
+  messagingSenderId: "1097565311165"
+  // appId is only needed for Analytics; Realtime Database does not use it.
 };
 /* ================= nothing below needs editing ================= */
 
@@ -321,7 +323,7 @@ const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]}
 const COLORS = ["red","red","white","white","green","green"];
 const $ = id => document.getElementById(id);
 
-const configured = !firebaseConfig.apiKey.startsWith("PASTE");
+const configured = !!firebaseConfig.databaseURL && !firebaseConfig.databaseURL.includes("PASTE");
 let db = null;
 if(configured) db = getDatabase(initializeApp(firebaseConfig));
 else $("configWarn").style.display = "block";
@@ -454,7 +456,7 @@ $("myName").value = store.get("zonk.name") || "";
 let table = null, unsub = null, seated = false;
 let mySel = new Set();
 let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
-let archived = false;
+let zonkTimer = null, archived = false;
 
 const playersRef = () => ref(db, "table/players");
 const gameRef    = () => ref(db, "table/game");
@@ -668,7 +670,15 @@ function renderGame(){
   wasMyTurn = myTurn;
 
   veil("veilZonk", !!g.zonk);
-  if(g.zonk) $("zonkText").textContent = g.zonkText || "";
+  clearTimeout(zonkTimer);
+  if(g.zonk){
+    $("zonkText").textContent = g.zonkText || "";
+    // The roller advances first. Every other phone holds a fallback timer, so a
+    // reload or a dropped connection can never strand the game on this screen.
+    const mine = g.order[g.turn] === myId;
+    const due = ZONK_HOLD_MS + (mine ? 0 : 4000) - (Date.now() - g.stamp);
+    zonkTimer = setTimeout(passTheDice, Math.max(0, due));
+  }
   if(g.over) renderWin(g); else veil("veilWin", false);
 
   clearTimeout(escTimer);
@@ -786,7 +796,10 @@ function doRoll(){
     stamp: Date.now()
   }));
 
-  if(zonked) setTimeout(() => advance(0), ZONK_HOLD_MS);
+}
+
+function passTheDice(){
+  if(table && table.game && table.game.zonk) advance(0);
 }
 
 function doBank(){
@@ -948,6 +961,7 @@ $("btnSit").onclick = sitDown;
 $("btnStart").onclick = startGame;
 $("btnLeave").onclick = leaveTable;
 $("btnAlerts").onclick = enableAlerts;
+$("btnZonkGo").onclick = passTheDice;
 $("btnSkip").onclick = skipTurn;
 $("btnAbandon").onclick = abandonGame;
 $("btnQuote").onclick = () => postQuote($("quoteInput").value);
