@@ -121,24 +121,59 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .turn-note small{display:block;font-family:inherit;font-weight:500;font-size:15px;
   color:var(--muted);margin-top:8px}
 
-.die{width:62px;height:62px;border-radius:13px;flex:none;position:relative;
-  display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:3px;padding:9px;
-  box-shadow:0 4px 0 rgba(0,0,0,.32), inset 0 -3px 6px rgba(0,0,0,.18);
-  transition:transform .16s ease, box-shadow .16s ease}
-.die.red{background:var(--dice-red)}
-.die.white{background:var(--dice-white)}
-.die.green{background:var(--dice-green)}
-.die .pip{border-radius:50%;background:var(--cream);align-self:center;justify-self:center;width:11px;height:11px}
-.die.white .pip{background:var(--ink)}
-.die.sel{transform:translateY(-9px);box-shadow:0 12px 0 rgba(0,0,0,.28),0 0 0 3px var(--brass), inset 0 -3px 6px rgba(0,0,0,.18)}
-.die.pending{width:42px;height:42px;border-radius:10px;padding:6px;gap:2px;
-  box-shadow:0 2px 0 rgba(0,0,0,.3), 0 0 0 3px var(--brass)}
-.die.pending .pip{width:7px;height:7px}
-.die.kept{width:42px;height:42px;border-radius:10px;padding:6px;gap:2px;opacity:.9;box-shadow:0 2px 0 rgba(0,0,0,.3)}
-.die.kept .pip{width:7px;height:7px}
-.die.tumble{animation:tumble .5s cubic-bezier(.3,1.4,.5,1)}
-@keyframes tumble{0%{transform:translateY(-26px) rotate(-38deg) scale(.86)}
-  60%{transform:translateY(0) rotate(6deg) scale(1.03)}100%{transform:none}}
+/* Glass dice. Each die is a real CSS cube: six faces placed around a centre,
+   then the whole cube rotated so the rolled face swings to the front. Faces are
+   translucent and backface-visibility is deliberately left visible, so the far
+   faces show through the body - that see-through depth is the whole effect.
+   Only the front face carries full-strength pips; the ones behind sit low so
+   the number you are meant to read stays unambiguous. Red/white/green survive
+   because threePairs() reads colour, so the six must stay tellable apart. */
+.die{
+  --size:62px; --half:31px; --pad:9px; --gap:3px; --rad:13px; --pipsz:11px;
+  --tilt:rotateX(-12deg) rotateY(11deg); --face-rot:rotateY(0deg); --fit:.84;
+  width:var(--size);height:var(--size);flex:none;position:relative;display:block;
+  padding:0;background:none;perspective:560px;
+  transition:transform .16s ease}
+/* Ground shadow lives on the pseudo-element, never on .cube - a filter there
+   would flatten preserve-3d and collapse the whole cube. */
+.die::before{content:"";position:absolute;left:10%;right:10%;bottom:-5px;height:9px;
+  border-radius:50%;background:rgba(0,0,0,.45);filter:blur(5px)}
+.die.red{--glass:196,52,43; --pipc:255,238,234}
+.die.white{--glass:236,230,219; --pipc:36,28,23}
+.die.green{--glass:46,125,79; --pipc:233,255,240}
+.cube{position:absolute;inset:0;transform-style:preserve-3d;
+  transform:scale(var(--fit)) var(--tilt) var(--face-rot);
+  transition:transform .32s cubic-bezier(.3,1.1,.4,1)}
+.face{position:absolute;inset:0;display:grid;
+  grid-template:repeat(3,1fr)/repeat(3,1fr);gap:var(--gap);padding:var(--pad);
+  border-radius:var(--rad);border:1px solid rgba(255,255,255,.26);
+  background:linear-gradient(148deg,rgba(255,255,255,.26) 0%,
+    rgba(255,255,255,.05) 44%,rgba(0,0,0,.14) 100%),rgba(var(--glass),.30)}
+/* Opposite faces sum to 7: 1 front, 6 back, 2 right, 5 left, 3 top, 4 bottom. */
+.f1{transform:translateZ(var(--half))}
+.f2{transform:rotateY(90deg) translateZ(var(--half))}
+.f3{transform:rotateX(90deg) translateZ(var(--half))}
+.f4{transform:rotateX(-90deg) translateZ(var(--half))}
+.f5{transform:rotateY(-90deg) translateZ(var(--half))}
+.f6{transform:rotateY(180deg) translateZ(var(--half))}
+.die .pip{border-radius:50%;align-self:center;justify-self:center;
+  width:var(--pipsz);height:var(--pipsz);background:rgba(var(--pipc),.24)}
+.face.front .pip{background:rgba(var(--pipc),.96);
+  box-shadow:0 1px 2px rgba(0,0,0,.4), inset 0 -1px 2px rgba(0,0,0,.25)}
+.die.sel{transform:translateY(-9px)}
+.die.sel::before{bottom:-14px;background:rgba(0,0,0,.38)}
+.die.sel .face,.die.pending .face{border-color:rgba(212,162,76,.85);
+  box-shadow:inset 0 0 13px rgba(212,162,76,.32)}
+.die.pending,.die.kept{--size:42px;--half:21px;--pad:6px;--gap:2px;--rad:10px;--pipsz:7px}
+.die.kept{opacity:.86}
+/* No fill-mode: once the tumble ends the animated transform is dropped so
+   .die.sel's lift can take over again. */
+.die.tumble{animation:drop .5s cubic-bezier(.3,1.4,.5,1) var(--tdelay,0ms)}
+.die.tumble .cube{animation:spin3d .5s cubic-bezier(.3,1.05,.45,1) var(--tdelay,0ms)}
+@keyframes drop{0%{transform:translateY(-26px) scale(.86)}
+  60%{transform:translateY(0) scale(1.03)}100%{transform:none}}
+@keyframes spin3d{0%{transform:scale(var(--fit)) rotateX(-210deg) rotateY(260deg)}
+  100%{transform:scale(var(--fit)) var(--tilt) var(--face-rot)}}
 
 .actions{display:flex;gap:10px;padding-bottom:max(12px,env(safe-area-inset-bottom))}
 .act{flex:1;padding:17px 10px;border-radius:12px;font-family:var(--display);font-weight:700;
@@ -205,7 +240,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .banner{background:#4A2A26;border:1px solid #7A3A33;color:#F0D0CC;padding:12px 14px;
   border-radius:10px;font-size:14px;line-height:1.4}
 
-@media (max-height:680px){.die{width:54px;height:54px}.tally{font-size:35px}.tray{min-height:35vh}}
+@media (max-height:680px){.die{--size:54px;--half:27px}.tally{font-size:35px}.tray{min-height:35vh}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -399,16 +434,16 @@ const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
 const ROLLOFF_MAX_MS = 5 * 60 * 1000;
 const CC_DELAY_MS = 2000;   // let the roll land first
 const CC_HOLD_MS = 2000;
-const COMPUTER = "computer";
-const AI_ROLL_MS = 900;      // pause before it rolls
-const AI_THINK_MS = 1000;    // pause before it picks
-const AI_COMMIT_MS = 1000;   // how long its picks sit visible
-const AI_ID = "computer";
-const AI_PAUSE_MS = 1100;    // long enough to watch it play
 const ROLL_SHOW_MS = 1000;   // look at the losing roll first
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+// Cube rotation that swings a given face to the front. Pairs with the .f1-.f6
+// face placement in the stylesheet, where opposite faces sum to 7.
+const FACE_ROT = {
+  1:"rotateY(0deg)",  2:"rotateY(-90deg)", 3:"rotateX(-90deg)",
+  4:"rotateX(90deg)", 5:"rotateY(90deg)",  6:"rotateY(180deg)"
+};
 const COLORS = ["red","red","white","white","green","green"];
 const $ = id => document.getElementById(id);
 
@@ -637,9 +672,6 @@ let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
 let autoSkipTimer = null, quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
 let ccTimer = null, ccHideTimer = null, ccFor = null;
-let aiTimer = null, aiPlan = null, aiStaged = null;
-let aiTimer = null, aiFor = null;
-let cpuTimer = null, cpuKey = null;
 
 // A solo game lives only in this variable - it never touches the shared table,
 // so any number of people can play solo at once while a group game runs.
@@ -724,8 +756,7 @@ function startSolo(){
 }
 
 function endSolo(){
-  clearTimeout(cpuTimer);
-  cpuKey = null;
+  cpuBusy = false;
   soloGame = null;
   archived = false;
   wasMyTurn = false;
@@ -803,11 +834,25 @@ function dieNode(i, face, state, small, interactive){
   el.className = "die " + COLORS[i]
     + (state === "kept" ? " kept" : "")
     + (state === "sel" ? (small ? " pending" : " sel") : "");
-  for(let k=0;k<9;k++){
-    const cell = document.createElement("span");
-    if(PIPS[face].includes(k)) cell.className = "pip";
-    el.append(cell);
+  // A resting tilt, varied by slot so six dice don't look stamped, but derived
+  // from the index so a die never jumps when the table re-renders.
+  el.style.setProperty("--tilt", "rotateX(" + (-15 + (i % 3) * 3)
+    + "deg) rotateY(" + (8 + (i % 4) * 3) + "deg)");
+  el.style.setProperty("--face-rot", FACE_ROT[face]);
+  // All six faces are built every time: the ones behind show through the glass.
+  const cube = document.createElement("span");
+  cube.className = "cube";
+  for(let f=1; f<=6; f++){
+    const fc = document.createElement("span");
+    fc.className = "face f" + f + (f === face ? " front" : "");
+    for(let k=0;k<9;k++){
+      const cell = document.createElement("span");
+      if(PIPS[f].includes(k)) cell.className = "pip";
+      fc.append(cell);
+    }
+    cube.append(fc);
   }
+  el.append(cube);
   if(interactive){
     el.setAttribute("aria-pressed", String(state==="sel"));
     el.setAttribute("aria-label", "Die showing " + face
@@ -1096,7 +1141,7 @@ function renderGame(){
     lastFaces = key;
     tray.querySelectorAll(".die").forEach((el,i) => {
       el.classList.remove("tumble"); void el.offsetWidth;
-      el.style.animationDelay = (i*40) + "ms";
+      el.style.setProperty("--tdelay", (i*40) + "ms");
       el.classList.add("tumble");
     });
   }
@@ -1109,10 +1154,6 @@ function renderGame(){
 function afterRender(g, myTurn){
   if(myTurn && !wasMyTurn && !g.over) alertMyTurn();
   wasMyTurn = myTurn;
-
-  cpuTick();
-
-  aiThink(g);
 
   if(soloGame && !g.over && g.order[g.turn] === CPU) cpuTurn();
 
@@ -1226,85 +1267,6 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   };
 }
 
-/* ---------- the Computer ----------
-   One-ply expected value. For every legal keep it works out what the pot would
-   be, then compares stopping there against the value of rolling on: the chance
-   of surviving times the pot plus a typical roll's gain. It takes the best
-   option, so it presses its luck on six fresh dice and gets cautious on two.
-   The entry rule binds it too - under 500 it has no choice but to keep rolling.
-   ------------------------------------------------------------------------- */
-const P_ZONK   = [0, 0.667, 0.444, 0.278, 0.159, 0.077, 0.023];
-const EXP_GAIN = [0, 55, 130, 200, 260, 320, 380];
-
-function bestKeep(g){
-  const inPlay = [];
-  g.states.forEach((st,i) => { if(st !== "kept") inPlay.push(i); });
-  const n = inPlay.length;
-  const score = g.scores[COMPUTER] || 0;
-  const entered = !!g.entered[COMPUTER];
-  let best = null;
-  for(let m = 1; m < (1 << n); m++){
-    const idx = [];
-    for(let b = 0; b < n; b++) if(m & (1 << b)) idx.push(inPlay[b]);
-    const gain = scoreSet(idx.map(i => g.faces[i]));
-    if(gain === null) continue;
-    const pot = g.points + gain;
-    const left = n - idx.length;
-    let value, action;
-    if(left === 0){
-      value = pot + EXP_GAIN[6] * (1 - P_ZONK[6]);   // hot dice, no choice
-      action = "roll";
-    } else {
-      const rollOn = (1 - P_ZONK[left]) * (pot + EXP_GAIN[left]);
-      const mayStop = pot >= (entered ? 300 : 500);
-      const wouldWin = score + pot >= TARGET;
-      if(mayStop && (wouldWin || pot >= rollOn)){ value = pot; action = "bank"; }
-      else { value = rollOn; action = "roll"; }
-    }
-    if(!best || value > best.value) best = { idx, gain, value, action };
-  }
-  return best;
-}
-
-const aiTurn = g => !!soloGame && !g.over && g.order[g.turn] === COMPUTER;
-
-function aiRoll(){
-  if(!soloGame || !aiTurn(soloGame)) return;
-  mySel.clear();
-  doRoll();
-}
-
-function aiChoose(){
-  const g = soloGame;
-  if(!g || !aiTurn(g) || !g.rolled || g.zonk) return;
-  const plan = bestKeep(g);
-  if(!plan) return;
-  mySel = new Set(plan.idx);
-  aiPlan = plan;
-  aiStaged = g.stamp;
-  render();                                  // its picks show, ringed
-  aiTimer = setTimeout(aiCommit, AI_COMMIT_MS);
-}
-
-function aiCommit(){
-  const g = soloGame, plan = aiPlan;
-  aiPlan = null; aiStaged = null;
-  if(!g || !plan || !aiTurn(g)) return;
-  if(plan.action === "bank") doBank(); else doRoll();
-}
-
-function aiTick(g){
-  if(!aiTurn(g) || g.zonk){
-    clearTimeout(aiTimer);
-    aiPlan = null; aiStaged = null;
-    return;
-  }
-  if(aiStaged === g.stamp) return;           // picks already on screen
-  clearTimeout(aiTimer);
-  aiTimer = g.rolled
-    ? setTimeout(aiChoose, AI_THINK_MS)
-    : setTimeout(aiRoll, AI_ROLL_MS);
-}
 
 /* ---------- actions: only the active player writes ---------- */
 let toastTimer = null;
@@ -1460,126 +1422,6 @@ function abandonGame(){
   remove(gameRef()).catch(()=>{});
 }
 
-/* ---------- the Computer ---------- */
-
-// Best complete keep from what's in the tray: highest score, and among equals
-// the one using fewest dice so more stay live.
-function cpuChoose(g){
-  const tray = [];
-  g.states.forEach((st,i) => { if(st !== "kept") tray.push(i); });
-  let best = null;
-  for(let m = 1; m < (1 << tray.length); m++){
-    const idx = [];
-    for(let b = 0; b < tray.length; b++) if(m & (1 << b)) idx.push(tray[b]);
-    const sc = scoreSet(idx.map(i => g.faces[i]));
-    if(sc === null) continue;
-    if(!best || sc > best.score || (sc === best.score && idx.length < best.idx.length))
-      best = { score: sc, idx };
-  }
-  return best;
-}
-
-// Chance of a dead roll, and the average haul from a live one, by dice count.
-const CPU_ZONK = {1:0.667, 2:0.444, 3:0.278, 4:0.159, 5:0.077, 6:0.023};
-const CPU_GAIN = {1:75, 2:135, 3:200, 4:270, 5:340, 6:420};
-
-function cpuShouldStop(g, pick){
-  const me = g.order[g.turn];
-  const running = g.points + pick.score;
-  const left = g.live - pick.idx.length;
-  if(left === 0) return false;                                  // hot dice, no choice
-  if(running < (g.entered[me] ? 300 : 500)) return false;        // can't stop yet
-  if((g.scores[me] || 0) + running >= TARGET) return true;       // that's the game
-  // Roll on while the expected gain still beats what's on the table.
-  const p = CPU_ZONK[left], gain = CPU_GAIN[left];
-  return running >= (1 - p) * gain / p;
-}
-
-function cpuTick(){
-  const g = soloGame;
-  if(!g || g.over || g.zonk || g.order[g.turn] !== CPU_ID) return;
-  const key = g.stamp + ":" + (g.rolled ? "r" : "n");
-  if(cpuKey === key) return;
-  cpuKey = key;
-  clearTimeout(cpuTimer);
-  cpuTimer = setTimeout(() => {
-    const gg = soloGame;
-    if(!gg || gg.over || gg.zonk || gg.order[gg.turn] !== CPU_ID) return;
-    if(!gg.rolled){ mySel.clear(); return doRoll(); }
-    const pick = cpuChoose(gg);
-    if(!pick) return;
-    mySel = new Set(pick.idx);
-    render();                                   // let the dice drop into view
-    setTimeout(() => {
-      const g3 = soloGame;
-      if(!g3 || g3.over || g3.zonk || g3.order[g3.turn] !== CPU_ID) return;
-      if(cpuShouldStop(g3, pick)) doBank(); else doRoll();
-    }, CPU_PICK_MS);
-  }, CPU_THINK_MS);
-}
-
-/* ---------- the Computer ---------- */
-
-// Every legal keep from the dice in play, best score first, and among equal
-// scores the one that uses the fewest dice so more are left to roll.
-function bestKeep(g, trayIdx){
-  let pick = null;
-  for(let m = 1; m < (1 << trayIdx.length); m++){
-    const idx = [];
-    for(let b = 0; b < trayIdx.length; b++) if(m & (1 << b)) idx.push(trayIdx[b]);
-    const sc = scoreSet(idx.map(i => g.faces[i]));
-    if(sc === null) continue;
-    if(!pick || sc > pick.score || (sc === pick.score && idx.length < pick.idx.length))
-      pick = { idx, score: sc };
-  }
-  return pick;
-}
-
-// Chance of a zonk by dice left: 1->66%, 2->44%, 3->28%, 4->16%, 5->8%, 6->2%.
-// The caps below are the turn totals it won't risk at each of those.
-const AI_CAP = { 1: 300, 2: 450, 3: 750, 4: 1200, 5: 2000, 6: 3000 };
-
-function aiShouldBank(g, left, total){
-  const mine = (g.scores[AI_ID] || 0) + total;
-  if(mine >= TARGET) return true;                 // banking wins outright
-  const rivals = g.order.filter(p => p !== AI_ID).map(p => g.scores[p] || 0);
-  const leader = rivals.length ? Math.max.apply(null, rivals) : 0;
-  if(g.finalRound && mine <= leader) return false; // a losing total is no total
-  const chasing = g.finalRound || leader >= TARGET - 1500;
-  const cap = AI_CAP[left] || 300;
-  return total >= (chasing ? cap * 2 : cap);
-}
-
-function aiThink(g){
-  if(!soloGame || !g || g.over || g.zonk) return;
-  if(g.order[g.turn] !== AI_ID) return;
-  const key = g.stamp + "|" + (g.rolled ? 1 : 0);
-  if(aiFor === key) return;                        // already queued this position
-  aiFor = key;
-  clearTimeout(aiTimer);
-  aiTimer = setTimeout(aiMove, AI_PAUSE_MS);
-}
-
-function aiMove(){
-  const g = G();
-  if(!soloGame || !g || g.over || g.zonk || g.order[g.turn] !== AI_ID) return;
-
-  if(!g.rolled){ mySel.clear(); return doRoll(); }
-
-  const trayIdx = [];
-  g.states.forEach((st,i) => { if(st !== "kept") trayIdx.push(i); });
-  const pick = bestKeep(g, trayIdx);
-  if(!pick) return;                                // nothing legal: the zonk path owns this
-
-  mySel = new Set(pick.idx);
-  const left = trayIdx.length - pick.idx.length;
-  const total = g.points + pick.score;
-  const floor = g.entered[AI_ID] ? 300 : 500;
-
-  if(left === 0) return doRoll();                  // hot dice, no choice
-  if(total >= floor && aiShouldBank(g, left, total)) return doBank();
-  return doRoll();
-}
 
 /* ---------- endgame + archive ---------- */
 function renderWin(g){
