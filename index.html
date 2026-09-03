@@ -446,8 +446,8 @@ const firebaseConfig = {
 const VERSION = "20260903-1636";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
-const IDLE_SKIP_MS = 60000;    // manual skip link appears
-const TURN_LIMIT_MS = 120000;  // turn is skipped automatically
+const TURN_LIMIT_MS = 120000;   // quiet this long and the skip button appears
+const TOUCH_EVERY_MS = 20000;   // how often picking dice marks the turn alive
 const ZONK_STREAK_PTF = 3;
 const QUOTE_WAIT_MS = 30000;      // winner has this long to start typing
 const GAME_MAX_MS = 60 * 60 * 1000;  // an unfinished game is cleared after an hour
@@ -765,7 +765,7 @@ let mySel = new Set();
 let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
 let zonkAnimFor = null;
-let autoSkipTimer = null, quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
+let quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
 let ccTimer = null, ccHideTimer = null, ccFor = null;
 
 // A solo game lives only in this variable - it never touches the shared table,
@@ -1013,6 +1013,7 @@ function dieNode(i, face, state, small, interactive){
         return;
       }
       try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}
+      touchTurn();                       // still here, still choosing
       render();
     };
   }
@@ -1391,32 +1392,19 @@ function afterRender(g, myTurn){
   if(g.over) renderWin(g); else veil("veilWin", false);
 
   clearTimeout(escTimer);
-  clearTimeout(autoSkipTimer);
   clearTimeout(abandonTimer);
   $("btnSkip").classList.remove("on");
   $("btnAbandon").classList.remove("on");
   if(!g.over){
     const since = Date.now() - g.stamp;
-    // Both timers below exist for an absent human. In a solo game the other
-    // player is a computer this same device drives, so it is never absent -
-    // and "Abandon Game?" sits on screen throughout, so nothing is stranded.
-    //
-    // The manual link is for the people waiting; nobody is offered the chance
-    // to skip themselves.
-    if(!soloGame && !myTurn && g.order.length > 1){
+    // Nothing is ever skipped automatically - a slow player is left to play.
+    // Two minutes with no sign of life on the turn and everybody else is
+    // offered the button, and one of them decides. In a solo game the other
+    // player is a computer this same device drives, so it is never absent, and
+    // "Abandon Game?" sits on screen throughout.
+    if(!soloGame && !myTurn && !g.zonk && g.order.length > 1){
       escTimer = setTimeout(() => $("btnSkip").classList.add("on"),
-        Math.max(1500, IDLE_SKIP_MS - since));
-    }
-    // The turn limit is enforced by the active player's own phone first, so it
-    // holds even when every other phone is asleep with its timers throttled.
-    // The watchers still arm behind it, staggered, for the case where that
-    // phone is the one that has gone away. Whoever fires first wins: skipTurn
-    // refuses a turn under a minute old, so the timers behind it do nothing
-    // once the game has moved on.
-    if(!soloGame && !g.zonk && g.order.length > 1){
-      const seat = g.order.indexOf(myId);
-      const lag = myTurn ? 0 : 800 + (seat < 0 ? 1200 : seat * 400);
-      autoSkipTimer = setTimeout(skipTurn, Math.max(2000, TURN_LIMIT_MS - since) + lag);
+        Math.max(500, TURN_LIMIT_MS - (Date.now() - lastSeenOnTurn(g))));
     }
     abandonTimer = setTimeout(() => $("btnAbandon").classList.add("on"),
       Math.max(2000, ABANDON_MS - since));
@@ -1600,9 +1588,29 @@ function advance(gained){
   }), "end the turn");
 }
 
+/* When the turn last showed a sign of life. A roll or a bank moves the stamp,
+   but picking dice writes nothing, so a player deliberating over which to keep
+   would look identical to one who has walked off. Their phone marks the turn
+   instead - rarely, so it costs next to nothing - and everyone measures the
+   quiet from whichever came last. */
+const lastSeenOnTurn = g => Math.max(g.stamp || 0, g.touched || 0);
+
+let lastTouch = 0;
+function touchTurn(){
+  const g = G();
+  if(!g || g.over || g.zonk || soloGame) return;   // solo is never skipped
+  if(g.order[g.turn] !== myId) return;             // only the player whose turn it is
+  const now = Date.now();
+  if(now - lastTouch < TOUCH_EVERY_MS) return;
+  if(now - lastSeenOnTurn(g) < TOUCH_EVERY_MS) return;
+  lastTouch = now;
+  update(gameRef(), { touched: now }).catch(()=>{});
+}
+
 function skipTurn(){
   const g = G();
-  if(!g || g.over || g.zonk || Date.now() - g.stamp < IDLE_SKIP_MS) return;
+  if(!g || g.over || g.zonk) return;
+  if(Date.now() - lastSeenOnTurn(g) < TURN_LIMIT_MS) return;
   const next = (g.turn + 1) % g.order.length;
   const over = g.finalRound && next === g.triggeredBy;
   let winner = null;

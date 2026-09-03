@@ -127,16 +127,20 @@ The app also requests a screen wake lock so phones don't sleep mid-game.
 
 ## If someone drops off
 
-Cellular being what it is, a player will occasionally vanish mid-turn. After 60
-seconds with no activity, everyone else sees a **skip their turn** link at the
-bottom. Skipping banks nothing for that player and moves on.
+Cellular being what it is, a player will occasionally vanish mid-turn. Nothing
+is ever skipped automatically — a slow player is left to play. But once a turn
+has gone two minutes without a sign of life, everyone else sees a **Skip this
+player** button, and one of them decides. Skipping banks nothing for that player
+and moves on. Nobody is offered the chance to skip themselves.
 
-At two minutes the turn is skipped automatically. The active player's own phone
-enforces this, so it holds even if every other phone is asleep with its timers
-throttled; the watching phones arm behind it, staggered, for the case where that
-phone is the one that has gone away. Whichever fires first wins — a turn under a
-minute old is refused, so the timers behind it do nothing. Solo games are exempt,
-since nobody is waiting on you.
+The two minutes are counted between signs of life, not from the start of the
+turn. Rolling and banking are the obvious ones, but picking which dice to keep
+writes nothing, so a player deliberating would otherwise look identical to one
+who has walked off. Their phone marks the turn while they choose — at most once
+every twenty seconds, so it costs next to nothing — and the quiet is measured
+from whichever came last.
+
+Solo games are exempt, since nobody is waiting on you.
 
 A player who reloads or reconnects rejoins their game automatically — their
 identity is stored on their device.
