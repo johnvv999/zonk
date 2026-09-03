@@ -1,0 +1,65 @@
+# Builds the site and stamps VERSION on the way out.
+#
+# VERSION is what a running page compares against the deployed copy to decide
+# whether to reload itself (see checkForUpdate in index.html). Stamping it here
+# means it cannot be forgotten: every deploy gets a value that differs from the
+# last, so clients always notice a new build. The value committed to the repo is
+# only a fallback - this rewrites it in the artifact, never in the branch.
+
+name: Deploy to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; the newest push wins.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Everything in the repo is served, exactly as the old deploy-from-branch
+      # setup did - minus the things that are not part of the site.
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          rsync -a --exclude='.git' --exclude='.github' --exclude='_site' ./ _site/
+          ls -la _site
+
+      - name: Stamp VERSION
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y%m%d-%H%M)-${GITHUB_SHA::7}"
+          # Fail loudly rather than deploy an unstamped build if the line moves
+          # or is renamed - a silently stale VERSION is the exact bug this
+          # workflow exists to prevent.
+          grep -q 'const VERSION = "[^"]*";' _site/index.html || {
+            echo "::error file=index.html::VERSION line not found - cannot stamp"
+            exit 1
+          }
+          sed -i "s/const VERSION = \"[^\"]*\";/const VERSION = \"${stamp}\";/" _site/index.html
+          grep -n 'const VERSION' _site/index.html
+          echo "Stamped VERSION as ${stamp}"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

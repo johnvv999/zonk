@@ -11,6 +11,7 @@ Free tier throughout, no payment method required.
 | `index.html` | The whole game. The only file you need to edit. |
 | `database.rules.json` | Security rules to paste into the Firebase console. |
 | `local-passphone.html` | Earlier single-device version. No Firebase, no internet. Keep or delete. |
+| `.github/workflows/deploy.yml` | Builds and publishes the site, stamping `VERSION` on the way out. |
 
 ---
 
@@ -79,9 +80,15 @@ skip this step.
 
 ### 5. Publish to GitHub Pages
 
-Create a repo, push `index.html` to the root, then **Settings → Pages → Source:
-Deploy from a branch → `main` → `/ (root)`**. Live at
-`https://<user>.github.io/<repo>/` within a minute or two.
+Create a repo, push `index.html` to the root, then **Settings → Pages → Source
+→ GitHub Actions**. Live at `https://<user>.github.io/<repo>/` within a minute
+or two of each push to `main`.
+
+`.github/workflows/deploy.yml` does the deploy. It copies the repo into a `_site`
+directory, stamps `VERSION`, and publishes that — so the branch itself is never
+rewritten. If the `VERSION` line ever goes missing the job fails rather than
+shipping an unstamped build, because a stale `VERSION` silently strands every
+client on an old copy (see *Versioning* below).
 
 Firebase doesn't need to know about your domain for Realtime Database access, so
 there's nothing else to configure.
@@ -131,6 +138,26 @@ When a game ends, the winner types a victory line. That plus the final scores ge
 written to `/archive` and is readable from the **Hall of fame** button on the home
 screen. The archive survives everything; live rooms are deleted when the host taps
 **Back to start**.
+
+## Versioning
+
+GitHub Pages caches HTML for ten minutes and phones hold it far longer, so the
+page checks itself: it re-fetches its own source bypassing the cache, and if the
+deployed `VERSION` differs from the one running, it reloads onto that version.
+
+That only works if `VERSION` changes on every deploy, so the deploy workflow
+stamps it — `<UTC timestamp>-<short sha>` — rather than leaving it to be
+remembered. The value committed in `index.html` is a fallback for opening the
+file straight from disk; what ships is always the stamp.
+
+Two things worth knowing if a client ever looks stuck on an old build:
+
+- A build whose script failed to parse cannot update itself, because the update
+  check lives in that same script. Such a client needs one manual hard refresh
+  and will then self-heal from there.
+- Shipping two builds with the same `VERSION` leaves clients on the first one
+  indefinitely. The workflow makes that impossible, which is why the stamp is
+  not optional.
 
 ## Costs
 
