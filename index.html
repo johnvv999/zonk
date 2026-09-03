@@ -113,6 +113,9 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .die .pip{border-radius:50%;background:var(--cream);align-self:center;justify-self:center;width:11px;height:11px}
 .die.white .pip{background:var(--ink)}
 .die.sel{transform:translateY(-9px);box-shadow:0 12px 0 rgba(0,0,0,.28),0 0 0 3px var(--brass), inset 0 -3px 6px rgba(0,0,0,.18)}
+.die.pending{width:42px;height:42px;border-radius:10px;padding:6px;gap:2px;
+  box-shadow:0 2px 0 rgba(0,0,0,.3), 0 0 0 3px var(--brass)}
+.die.pending .pip{width:7px;height:7px}
 .die.kept{width:42px;height:42px;border-radius:10px;padding:6px;gap:2px;opacity:.9;box-shadow:0 2px 0 rgba(0,0,0,.3)}
 .die.kept .pip{width:7px;height:7px}
 .die.tumble{animation:tumble .5s cubic-bezier(.3,1.4,.5,1)}
@@ -140,6 +143,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .veil .big-btn{max-width:340px}
 .veil input[type=text]{max-width:340px}
 .zonk-word{color:var(--danger)}
+.nope-word{color:var(--brass)}
 .win-word{color:var(--brass)}
 .finaltable{display:flex;flex-direction:column;gap:5px;width:100%;max-width:340px}
 .finalrow{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;
@@ -247,6 +251,13 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 </section>
 
 <div id="toast"></div>
+
+<div class="veil" id="veilNope">
+  <p>Wanna quit....</p>
+  <h2 class="nope-word">Can't!</h2>
+  <p id="nopeWhy"></p>
+  <button class="big-btn quiet" id="btnNope" style="max-width:340px">Fine</button>
+</div>
 
 <div class="veil" id="veilZonk">
   <h2 class="zonk-word">ZONK</h2>
@@ -568,7 +579,9 @@ function startGame(){
 /* ---------- rendering ---------- */
 function dieNode(i, face, state, small, interactive){
   const el = document.createElement(interactive ? "button" : "div");
-  el.className = "die " + COLORS[i] + (small ? " kept" : "") + (state==="sel" ? " sel" : "");
+  el.className = "die " + COLORS[i]
+    + (state === "kept" ? " kept" : "")
+    + (state === "sel" ? " pending" : "");
   for(let k=0;k<9;k++){
     const cell = document.createElement("span");
     if(PIPS[face].includes(k)) cell.className = "pip";
@@ -576,7 +589,8 @@ function dieNode(i, face, state, small, interactive){
   }
   if(interactive){
     el.setAttribute("aria-pressed", String(state==="sel"));
-    el.setAttribute("aria-label", "Die showing " + face + (state==="sel" ? ", set aside" : ""));
+    el.setAttribute("aria-label", "Die showing " + face
+      + (state==="sel" ? ", set aside - tap to put it back" : ", tap to set aside"));
     el.onclick = () => {
       if(mySel.has(i)) mySel.delete(i); else mySel.add(i);
       try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}
@@ -650,13 +664,17 @@ function renderGame(){
 
   const tray = $("trayRow"), kept = $("keptRow");
   tray.innerHTML = ""; kept.innerHTML = "";
+  const canTap = myTurn && g.rolled && !g.zonk;
+  const trayIdx = [], keptIdx = [], pendIdx = [];
   states.forEach((st,i) => {
-    if(st === "kept") return;
-    tray.append(dieNode(i, faces[i], st, false, myTurn && g.rolled && !g.zonk));
+    if(st === "kept") keptIdx.push(i);
+    else if(st === "sel") pendIdx.push(i);
+    else trayIdx.push(i);
   });
-  const keptIdx = states.map((st,i) => st==="kept" ? i : -1).filter(i => i>=0);
-  if(keptIdx.length) keptIdx.forEach(i => kept.append(dieNode(i, faces[i], "kept", true, false)));
-  else {
+  trayIdx.forEach(i => tray.append(dieNode(i, faces[i], "tray", false, canTap)));
+  keptIdx.forEach(i => kept.append(dieNode(i, faces[i], "kept", true, false)));
+  pendIdx.forEach(i => kept.append(dieNode(i, faces[i], "sel",  true, canTap)));
+  if(!keptIdx.length && !pendIdx.length){
     const n = document.createElement("div");
     n.className = "kept-note";
     n.textContent = g.rolled ? (myTurn ? "Tap the dice you want to keep" : "") : "";
@@ -723,15 +741,15 @@ function drawActions(g, myTurn, selFaces, selScore, running){
 
   const bank = document.createElement("button"); bank.className = "act";
   const roll = document.createElement("button"); roll.className = "act primary";
-  bank.onclick = doBank; roll.onclick = doRoll;
+  roll.onclick = doRoll;
   box.append(bank, roll);
 
   const entered = g.entered[g.order[g.turn]];
 
   if(!g.rolled){
     roll.textContent = "Roll " + g.live + " dice";
-    bank.textContent = entered ? "Bank" : "Need 500";
-    bank.disabled = true;
+    bank.textContent = entered ? "Done" : "Need 500";
+    bank.onclick = () => nope("Roll the dice first.");
     hint.textContent = g.points ? "Held this turn: " + g.points.toLocaleString() : "";
     return;
   }
@@ -746,11 +764,18 @@ function drawActions(g, myTurn, selFaces, selScore, running){
     : running >= 500);
 
   roll.disabled = !valid;
-  bank.disabled = !canBank;
   roll.textContent = hotDice ? "Hot dice - roll all six" : "Keep & roll " + left;
-  bank.textContent = entered
-    ? "Bank " + (valid ? running.toLocaleString() : "")
-    : (canBank ? "Enter Cosmos" : "Need 500");
+  bank.textContent = entered ? "Done" : (canBank ? "Enter Cosmos" : "Need 500");
+  bank.onclick = () => {
+    if(canBank) return doBank();
+    if(!selFaces.length)      nope("You haven't set any dice aside.");
+    else if(selScore === null) nope("One of those doesn't score on its own.");
+    else if(hotDice)           nope("All six scored. You have to roll again.");
+    else if(!entered)          nope("500 gets you into the game. You're at "
+                                    + running.toLocaleString() + ".");
+    else                       nope("300 is the floor to bank. You're at "
+                                    + running.toLocaleString() + ".");
+  };
 
   if(!selFaces.length) hint.textContent = "Keep at least one scoring die.";
   else if(selScore === null){
@@ -840,6 +865,12 @@ function passTheDice(){
   if(passedStamp === g.stamp) return;   // already handled this zonk
   passedStamp = g.stamp;
   advance(0);
+}
+
+function nope(why){
+  $("nopeWhy").textContent = why || "";
+  try{ if(navigator.vibrate) navigator.vibrate([30,60,30]); }catch(e){}
+  veil("veilNope", true);
 }
 
 function doBank(){
@@ -1003,6 +1034,7 @@ $("btnSit").onclick = sitDown;
 $("btnStart").onclick = startGame;
 $("btnLeave").onclick = leaveTable;
 $("btnAlerts").onclick = enableAlerts;
+$("btnNope").onclick = () => veil("veilNope", false);
 $("btnSkip").onclick = skipTurn;
 $("btnAbandon").onclick = abandonGame;
 $("btnQuote").onclick = () => postQuote($("quoteInput").value);
