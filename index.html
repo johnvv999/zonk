@@ -1198,7 +1198,10 @@ function afterRender(g, myTurn){
     $("zonkWord").textContent = runs >= ZONK_STREAK_PTF ? "PTF" : "ZONK";
     // The roller advances first. Every other phone holds a fallback timer, so a
     // reload or a dropped connection can never strand the game on this screen.
-    const mine = g.order[g.turn] === myId;
+    // A solo game has no other phone - this device drives the computer's turn
+    // too, so it is always the one that advances. Without this the computer's
+    // zonks sat on screen for the fallback's extra four seconds.
+    const mine = !!soloGame || g.order[g.turn] === myId;
     const due = ROLL_SHOW_MS + ZONK_HOLD_MS + (mine ? 0 : 4000) - since;
     zonkTimer = setTimeout(passTheDice, Math.max(0, due));
   } else {
