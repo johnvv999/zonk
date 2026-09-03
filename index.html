@@ -62,11 +62,14 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .big-btn:disabled{background:var(--edge);color:#8A7A6D}
 .ghost{padding:12px;color:var(--muted);font-size:14px;text-decoration:underline;text-underline-offset:4px}
 .err{color:var(--danger);font-size:14px;min-height:20px}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.namechip{padding:10px 15px;border-radius:999px;background:var(--felt);
-  border:1px solid var(--edge);font-size:15px;color:var(--cream);max-width:100%;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:8px}
+.namechip{width:100%;padding:12px 8px;border-radius:10px;background:var(--felt);
+  border:1px solid var(--edge);font-size:15px;color:var(--cream);text-align:center;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  transition:transform .15s ease,opacity .15s ease,background .15s ease}
 .namechip.picked{background:var(--brass);border-color:var(--brass);color:var(--ink);font-weight:600}
+.namechip.holding{transform:scale(.88);opacity:.45;background:var(--danger);border-color:var(--danger)}
+.chip-hint{color:#7E6E62;font-size:12px;margin-top:7px}
 
 .lobbyhead{text-align:center}
 .lobbyhead h2{font-size:clamp(30px,9vw,42px);color:var(--brass)}
@@ -102,6 +105,9 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .row{display:flex;justify-content:center;gap:11px;flex-wrap:wrap}
 .kept-row{padding-top:12px;border-top:1px dashed var(--edge);min-height:56px;align-items:center}
 .kept-note{color:#7E6E62;font-size:13px;text-align:center;width:100%}
+.joinbanner{display:none;background:#3E4F3A;border:1px solid #5C7355;color:#CFE3C8;
+  border-radius:9px;padding:8px 12px;margin-bottom:8px;font-size:14px;text-align:center}
+.joinbanner.on{display:block}
 .turn-note{width:100%;text-align:center;font-family:var(--display);font-weight:700;
   font-size:clamp(24px,7vw,34px);color:var(--brass);line-height:1.2}
 .turn-note small{display:block;font-family:inherit;font-weight:500;font-size:15px;
@@ -154,6 +160,8 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .finalrow{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;
   background:var(--felt);border-radius:8px;font-size:15px}
 .finalrow.top{background:#4A3A2A;color:var(--brass);font-weight:700}
+.stats-head{font-family:var(--display);font-weight:700;font-size:14px;color:var(--muted);
+  letter-spacing:.04em;text-transform:uppercase;margin-top:6px}
 .finalrow span:last-child{font-variant-numeric:tabular-nums}
 .quotebox{font-family:var(--display);font-weight:700;font-size:19px;color:var(--cream);
   max-width:34ch;line-height:1.3;-webkit-user-select:text;user-select:text}
@@ -209,6 +217,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <div id="knownWrap" style="display:none">
     <label>Played before?</label>
     <div class="chips" id="knownList"></div>
+    <div class="chip-hint">Tap to use it. Press and hold to remove a typo - the record kept under that name is safe.</div>
   </div>
   <div class="err" id="homeErr"></div>
   <button class="big-btn" id="btnSit">Sit down at the table</button>
@@ -231,6 +240,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   </div>
   <div class="err" id="lobbyErr"></div>
   <button class="big-btn" id="btnStart">Start game</button>
+  <button class="big-btn quiet" id="btnSolo">Play solo</button>
   <div style="display:flex;justify-content:center;gap:6px">
     <button class="ghost" id="openRules2">Rules</button>
     <button class="ghost" id="btnLeave">Leave the table</button>
@@ -238,6 +248,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 </section>
 
 <section id="game" class="screen">
+  <div class="joinbanner" id="joinBanner">Joining next game</div>
   <div class="standings" id="standings"></div>
   <div class="turnbar">
     <div class="label"><b id="whoNow">-</b> <span id="phase"></span></div>
@@ -256,6 +267,14 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 
 <div id="toast"></div>
 
+<div class="veil" id="veilJoin">
+  <h2 id="joinHead">Game in progress</h2>
+  <p id="joinSub"></p>
+  <button class="big-btn" id="btnJoinNext">Join next game</button>
+  <button class="big-btn quiet" id="btnSoloNow" style="max-width:340px">Play solo instead</button>
+  <button class="ghost" id="btnJoinLeave">Leave the table</button>
+</div>
+
 <div class="veil" id="veilRollout">
   <h2 class="rollout-word">Rollout!</h2>
   <p>All six scored. Pick them up and roll again.</p>
@@ -269,7 +288,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 </div>
 
 <div class="veil" id="veilZonk">
-  <h2 class="zonk-word">ZONK</h2>
+  <h2 class="zonk-word" id="zonkWord">ZONK</h2>
 </div>
 
 <div class="veil" id="veilWin">
@@ -277,9 +296,12 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <h2 class="win-word" id="winName">-</h2>
   <div class="quotebox" id="winQuote"></div>
   <div class="finaltable" id="finalTable"></div>
+  <div class="stats-head" id="statsHead" style="display:none">Games won / played</div>
+  <div class="finaltable" id="statsTable"></div>
   <input type="text" id="quoteInput" maxlength="140" placeholder="Say something for the record">
   <button class="big-btn" id="btnQuote">Post it</button>
-  <button class="ghost" id="btnSkipQuote">Skip</button>
+  <button class="big-btn quiet" id="btnSkipQuote" style="max-width:340px">Skip it</button>
+  <p id="quoteNote"></p>
   <button class="big-btn quiet" id="btnDone" style="max-width:340px">Back to the table</button>
 </div>
 
@@ -344,10 +366,15 @@ const firebaseConfig = {
 };
 /* ================= nothing below needs editing ================= */
 
+const VERSION = "20260903-1208";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
-const IDLE_SKIP_MS = 60000;
-const ROLL_SHOW_MS = 3000;   // look at the losing roll first
+const IDLE_SKIP_MS = 60000;    // manual skip link appears
+const TURN_LIMIT_MS = 120000;  // turn is skipped automatically
+const ZONK_STREAK_PTF = 3;
+const QUOTE_WAIT_MS = 30000;      // winner has this long to start typing
+const GAME_MAX_MS = 60 * 60 * 1000;  // an unfinished game is cleared after an hour
+const ROLL_SHOW_MS = 1000;   // look at the losing roll first
 const ZONK_HOLD_MS = 3000;   // then the ZONK screen
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
@@ -488,6 +515,12 @@ let table = null, unsub = null, seated = false;
 let mySel = new Set();
 let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
+let autoSkipTimer = null, quoteTimer = null, joiningNext = false;
+
+// A solo game lives only in this variable - it never touches the shared table,
+// so any number of people can play solo at once while a group game runs.
+let soloGame = null;
+const G = () => soloGame || (table && table.game) || null;
 let rolloutTimer = null, rolloutFor = null;
 
 const playersRef = () => ref(db, "table/players");
@@ -495,6 +528,9 @@ const gameRef    = () => ref(db, "table/game");
 
 /* ---------- sitting down ---------- */
 const myName = () => $("myName").value.trim().slice(0,14);
+
+// Firebase keys can't contain . $ # [ ] or /, so fold the name down to something safe.
+const nameKey = n => (n || "").trim().toLowerCase().replace(/[.$#\[\]\/\s]+/g, "_") || "_";
 function fail(el,msg){ $(el).textContent = msg; return false; }
 
 async function sitDown(){
@@ -512,6 +548,8 @@ async function sitDown(){
     name: myName(),
     joined: players[myId] ? players[myId].joined : Date.now()
   });
+  // Removing a name only clears the shortcut button. Typing it again brings it
+  // back, and the win/played record under that name was never touched.
   set(ref(db, "roster/" + myId), { name: myName(), last: Date.now() }).catch(()=>{});
   try{ onDisconnect(ref(db, "table/players/" + myId)).remove(); }catch(e){}
 
@@ -524,25 +562,57 @@ async function loadRoster(){
   if(!configured) return;
   try{
     const snap = await get(ref(db, "roster"));
-    if(!snap.exists()) return;
+    if(!snap.exists()){
+      $("knownWrap").style.display = "none";
+      return;
+    }
     const seen = new Map();
     snap.forEach(ch => {
       const v = ch.val();
       if(!v || !v.name) return;
       const key = v.name.trim().toLowerCase();
       if(!key) return;
-      const prev = seen.get(key);
-      if(!prev || (v.last||0) > prev.last) seen.set(key, { name: v.name.trim(), last: v.last||0 });
+      const e = seen.get(key) || { name: v.name.trim(), last: 0, ids: [] };
+      e.ids.push(ch.key);
+      if((v.last || 0) >= e.last){ e.last = v.last || 0; e.name = v.name.trim(); }
+      seen.set(key, e);
     });
     const names = [...seen.values()].sort((a,b) => b.last - a.last).slice(0,16);
-    if(!names.length) return;
+    if(!names.length){
+      $("knownList").innerHTML = "";
+      $("knownWrap").style.display = "none";
+      return;
+    }
     const box = $("knownList");
     box.innerHTML = "";
     names.forEach(n => {
       const b = document.createElement("button");
       b.className = "namechip";
       b.textContent = n.name;
+      let hold = null, removed = false;
+
+      const startHold = () => {
+        removed = false;
+        b.classList.add("holding");
+        hold = setTimeout(async () => {
+          removed = true;
+          b.classList.remove("holding");
+          try{ if(navigator.vibrate) navigator.vibrate([40,60,40]); }catch(e){}
+          try{
+            await Promise.all(n.ids.map(id => remove(ref(db, "roster/" + id))));
+          }catch(e){}
+          loadRoster();
+        }, 2000);
+      };
+      const cancelHold = () => { clearTimeout(hold); b.classList.remove("holding"); };
+
+      b.addEventListener("pointerdown", startHold);
+      ["pointerup","pointerleave","pointercancel"].forEach(ev =>
+        b.addEventListener(ev, cancelHold));
+      b.addEventListener("contextmenu", e => e.preventDefault());
+
       b.onclick = () => {
+        if(removed){ removed = false; return; }   // the hold already handled it
         $("myName").value = n.name;
         store.set("zonk.name", n.name);
         $("homeErr").textContent = "";
@@ -569,13 +639,42 @@ function leaveTable(){
   seated = false; table = null;
   store.del("zonk.seated");
   veil("veilWin", false); veil("veilZonk", false);
-  wasMyTurn = false; archived = false; mySel.clear();
+  wasMyTurn = false; archived = false; joiningNext = false; soloGame = null; mySel.clear();
   show("home");
 }
 
-function startGame(){
+function startSolo(){
+  const name = (table && table.players && table.players[myId] && table.players[myId].name)
+             || store.get("zonk.name") || "You";
+  soloGame = {
+    order: [myId], names: {[myId]: name}, scores: {[myId]: 0},
+    entered: {[myId]: false}, streak: {}, turn: 0,
+    faces: [1,3,5,2,6,4], states: ["tray","tray","tray","tray","tray","tray"],
+    points: 0, live: 6, rolled: false, zonk: false,
+    finalRound: false, triggeredBy: null, over: false,
+    winner: null, quote: "", started: Date.now(), stamp: Date.now()
+  };
+  // Step away from the shared table so a group game can't draft you mid-solo.
+  remove(ref(db, "table/players/" + myId)).catch(()=>{});
+  joiningNext = false;
+  veil("veilJoin", false);
+  render();
+}
+
+function endSolo(){
+  soloGame = null;
+  archived = false;
+  wasMyTurn = false;
+  veil("veilWin", false);
+  set(ref(db, "table/players/" + myId),
+      { name: store.get("zonk.name") || "Player", joined: Date.now() }).catch(()=>{});
+  render();
+}
+
+function startGame(soloOnly){
   const players = (table && table.players) || {};
-  const order = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
+  let order = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
+  if(soloOnly) order = order.filter(p => p === myId);
   if(!order.length) return fail("lobbyErr","Sit down first.");
   const names = {}, scores = {}, entered = {};
   order.forEach(p => { names[p] = players[p].name || "Player"; scores[p] = 0; entered[p] = false; });
@@ -624,7 +723,7 @@ function dieNode(i, face, state, small, interactive){
 // in the tray forms a complete scoring set. So a lone 4 is refused unless two
 // more 4s are sitting there to join it.
 function canAdd(idx){
-  const g = table && table.game;
+  const g = G();
   if(!g) return false;
   const tray = [];
   g.states.forEach((st,i) => { if(st !== "kept") tray.push(i); });
@@ -639,8 +738,9 @@ function canAdd(idx){
 }
 
 function render(){
-  if(!seated || !table) return;
-  if(table.game) renderGame(); else renderLobby();
+  if(!seated || (!table && !soloGame)) return;
+  if(G()){ renderGame(); }
+  else { joiningNext = false; veil("veilJoin", false); renderLobby(); }
 }
 
 function renderLobby(){
@@ -658,17 +758,41 @@ function renderLobby(){
   });
   $("lobbySub").textContent = ids.length === 1
     ? "Just you - start whenever" : ids.length + " players, in join order";
-  $("btnStart").disabled = ids.length < 1;
-  $("btnStart").textContent = ids.length === 1 ? "Play solo" : "Start game";
+  $("btnStart").style.display = ids.length > 1 ? "" : "none";
+  $("btnStart").textContent = "Start game with everyone";
   $("lobbyErr").textContent = "";
 }
 
+// Nothing should sit half-played forever. Any phone still watching clears a
+// game that has run past the limit, solo or shared.
+function reapStaleGame(g){
+  if(!g || g.over) return false;
+  if(Date.now() - (g.started || g.stamp || 0) < GAME_MAX_MS) return false;
+  if(soloGame){ endSolo(); }
+  else remove(gameRef()).catch(()=>{});
+  return true;
+}
+
 function renderGame(){
-  const g = table.game;
+  const g = G();
+  if(reapStaleGame(g)) return;
+  const iPlaying = g.order.indexOf(myId) >= 0;
+  if(!iPlaying && !joiningNext){
+    // Arrived mid-game. Offer the next one rather than dropping them into a
+    // board they have no part in.
+    const allScoring = g.order.every(p => (g.scores[p] || 0) > 0);
+    $("joinSub").textContent = allScoring
+      ? "Join next game?"
+      : "This one just started. Join next game?";
+    veil("veilJoin", true);
+    return;
+  }
+  veil("veilJoin", false);
+  $("joinBanner").classList.toggle("on", !iPlaying);
   show("game");
   const active = g.order[g.turn];
   const myTurn = active === myId && !g.over;
-  const iPlay = g.order.indexOf(myId) >= 0;
+  const iPlay = iPlaying;
 
   const s = $("standings"); s.innerHTML = "";
   g.order.forEach(pid => {
@@ -798,6 +922,8 @@ function afterRender(g, myTurn){
       veil("veilZonk", false);
       zonkShowTimer = setTimeout(() => veil("veilZonk", true), showIn);
     }
+    const runs = (g.streak || {})[g.order[g.turn]] || 0;
+    $("zonkWord").textContent = runs >= ZONK_STREAK_PTF ? "PTF" : "ZONK";
     // The roller advances first. Every other phone holds a fallback timer, so a
     // reload or a dropped connection can never strand the game on this screen.
     const mine = g.order[g.turn] === myId;
@@ -809,6 +935,7 @@ function afterRender(g, myTurn){
   if(g.over) renderWin(g); else veil("veilWin", false);
 
   clearTimeout(escTimer);
+  clearTimeout(autoSkipTimer);
   clearTimeout(abandonTimer);
   $("btnSkip").classList.remove("on");
   $("btnAbandon").classList.remove("on");
@@ -817,6 +944,13 @@ function afterRender(g, myTurn){
     if(!myTurn && g.order.length > 1){
       escTimer = setTimeout(() => $("btnSkip").classList.add("on"),
         Math.max(1500, IDLE_SKIP_MS - since));
+      // Nobody should wait on an absent player. Watching phones stagger their
+      // timers so the first one awake moves the game on.
+      if(!g.zonk){
+        const lag = g.order.indexOf(myId);
+        autoSkipTimer = setTimeout(skipTurn,
+          Math.max(2000, TURN_LIMIT_MS - since) + (lag < 0 ? 1200 : lag * 400));
+      }
     }
     abandonTimer = setTimeout(() => $("btnAbandon").classList.add("on"),
       Math.max(2000, ABANDON_MS - since));
@@ -889,6 +1023,7 @@ function clean(o){
 }
 
 function writeGame(obj, what){
+  if(soloGame){ soloGame = clean(obj); render(); return; }
   try{
     return set(gameRef(), clean(obj)).catch(err => {
       toast("Couldn't " + what + ": " + (err && err.message ? err.message : err));
@@ -909,7 +1044,7 @@ function commitSelection(g){
 }
 
 function doRoll(){
-  const g = table.game;
+  const g = G();
   let states = g.states.slice(), points = g.points, live = g.live;
   if(mySel.size){
     const c = commitSelection(g);
@@ -923,9 +1058,11 @@ function doRoll(){
 
   const inPlay = states.map((st,i) => st!=="kept" ? faces[i] : 0).filter(Boolean);
   const zonked = !anyScore(inPlay);
+  const streak = Object.assign({}, g.streak || {});
+  if(zonked) streak[myId] = (streak[myId] || 0) + 1;
 
   writeGame(Object.assign({}, g, {
-    faces, states, points, live, rolled: true, zonk: zonked,
+    faces, states, points, live, rolled: true, zonk: zonked, streak,
     zonkText: zonked ? (points
       ? g.names[myId] + " loses " + points.toLocaleString() + " from this turn."
       : "Nothing scored. Nothing lost.") : "",
@@ -935,7 +1072,7 @@ function doRoll(){
 }
 
 function passTheDice(){
-  const g = table && table.game;
+  const g = G();
   if(!g || !g.zonk) return;
   if(passedStamp === g.stamp) return;   // already handled this zonk
   passedStamp = g.stamp;
@@ -949,7 +1086,7 @@ function nope(why){
 }
 
 function doBank(){
-  const g = table.game;
+  const g = G();
   let points = g.points;
   if(mySel.size){
     const c = commitSelection(g);
@@ -961,11 +1098,18 @@ function doBank(){
 }
 
 function advance(gained){
-  const g = table.game;
+  const g = G();
   const me = g.order[g.turn];
   const scores = Object.assign({}, g.scores);
   const entered = Object.assign({}, g.entered);
-  if(gained > 0){ scores[me] = (scores[me]||0) + gained; entered[me] = true; }
+  const streak = Object.assign({}, g.streak || {});
+  if(gained > 0){
+    scores[me] = (scores[me]||0) + gained;
+    entered[me] = true;
+    streak[me] = 0;                              // banking breaks the run
+  } else if((streak[me] || 0) >= ZONK_STREAK_PTF){
+    streak[me] = 0;                              // PTF clears the count
+  }
 
   let finalRound = !!g.finalRound;
   let triggeredBy = (g.triggeredBy === undefined) ? null : g.triggeredBy;
@@ -980,7 +1124,7 @@ function advance(gained){
   }
 
   writeGame(Object.assign({}, g, {
-    scores, entered, turn: over ? g.turn : next,
+    scores, entered, streak, turn: over ? g.turn : next,
     states: ["tray","tray","tray","tray","tray","tray"],
     points: 0, live: 6, rolled: false, zonk: false, zonkText: "",
     finalRound, triggeredBy: triggeredBy ?? null, over,
@@ -989,8 +1133,8 @@ function advance(gained){
 }
 
 function skipTurn(){
-  const g = table.game;
-  if(!g || g.over || Date.now() - g.stamp < IDLE_SKIP_MS) return;
+  const g = G();
+  if(!g || g.over || g.zonk || Date.now() - g.stamp < IDLE_SKIP_MS) return;
   const next = (g.turn + 1) % g.order.length;
   const over = g.finalRound && next === g.triggeredBy;
   let winner = null;
@@ -1007,8 +1151,9 @@ function skipTurn(){
 }
 
 function abandonGame(){
-  const g = table.game;
+  const g = G();
   if(!g || Date.now() - g.stamp < ABANDON_MS) return;
+  if(soloGame) return endSolo();
   remove(gameRef()).catch(()=>{});
 }
 
@@ -1031,21 +1176,78 @@ function renderWin(g){
     tbl.append(r);
   });
 
+  showStats(g);
+
   const hasQuote = !!(g.quote && g.quote.trim());
   const needQuote = iWon && !hasQuote;
   $("winQuote").textContent = hasQuote ? '"' + g.quote + '"'
     : (iWon ? "" : "Waiting on the victory line...");
   $("quoteInput").style.display = needQuote ? "" : "none";
+  $("quoteNote").style.display = needQuote ? "" : "none";
+  $("quoteNote").textContent = needQuote
+    ? "Say nothing and the table moves on by itself." : "";
+  clearTimeout(quoteTimer);
+  if(needQuote){
+    // Only the winner holds this, and typing a single character cancels it.
+    quoteTimer = setTimeout(() => {
+      postQuote("").then(backToTable).catch(()=>{});
+    }, QUOTE_WAIT_MS);
+  }
   $("btnQuote").style.display = needQuote ? "" : "none";
   $("btnSkipQuote").style.display = needQuote ? "" : "none";
   $("btnDone").style.display = needQuote ? "none" : "";
 }
 
 async function postQuote(text){
-  const g = table.game;
+  const g = G();
   const quote = (text || "").trim().slice(0,140);
   await saveToHall(Object.assign({}, g, { quote }));
   await update(gameRef(), { quote, stamp: Date.now() });
+}
+
+// One row per name, so a record survives the shortcut button being deleted.
+// Solo games are excluded - a one-player win isn't worth counting.
+async function bumpStats(g){
+  if(!g.order || g.order.length < 2) return;
+  for(const pid of g.order){
+    const nm = g.names[pid] || "Player";
+    const k = nameKey(nm);
+    try{
+      const snap = await get(ref(db, "stats/" + k));
+      const cur = snap.exists() ? snap.val() : { name: nm, played: 0, won: 0 };
+      await set(ref(db, "stats/" + k), {
+        name: nm,
+        played: (cur.played || 0) + 1,
+        won: (cur.won || 0) + (pid === g.winner ? 1 : 0)
+      });
+    }catch(e){}
+  }
+}
+
+async function showStats(g){
+  const head = $("statsHead"), box = $("statsTable");
+  if(!g.order || g.order.length < 2){
+    head.style.display = "none"; box.innerHTML = ""; return;
+  }
+  const rows = [];
+  for(const pid of g.order){
+    const nm = g.names[pid] || "Player";
+    try{
+      const snap = await get(ref(db, "stats/" + nameKey(nm)));
+      rows.push(snap.exists() ? snap.val() : { name: nm, played: 0, won: 0 });
+    }catch(e){ rows.push({ name: nm, played: 0, won: 0 }); }
+  }
+  rows.sort((a,b) => (a.name || "").localeCompare(b.name || "", undefined, {sensitivity:"base"}));
+  box.innerHTML = "";
+  rows.forEach(r => {
+    const el = document.createElement("div");
+    el.className = "finalrow";
+    el.innerHTML = "<span></span><span></span>";
+    el.children[0].textContent = r.name;
+    el.children[1].textContent = (r.won || 0) + " / " + (r.played || 0);
+    box.append(el);
+  });
+  head.style.display = "";
 }
 
 async function saveToHall(g){
@@ -1060,6 +1262,7 @@ async function saveToHall(g){
         .sort((a,b) => (g.scores[b]||0) - (g.scores[a]||0))
         .map(p => ({ name: (g.names[p]||"Player").slice(0,14), score: g.scores[p]||0 }))
     });
+    await bumpStats(g);
   }catch(e){
     archived = false;
     $("winQuote").textContent = "The hall of fame write failed. Check your database rules.";
@@ -1067,6 +1270,7 @@ async function saveToHall(g){
 }
 
 function backToTable(){
+  if(soloGame) return endSolo();
   archived = false;
   veil("veilWin", false);
   remove(gameRef()).catch(()=>{});
@@ -1106,14 +1310,19 @@ async function openHall(){
 
 /* ---------- wiring ---------- */
 $("btnSit").onclick = sitDown;
-$("btnStart").onclick = startGame;
+$("btnStart").onclick = () => startGame(false);
+$("btnSolo").onclick = startSolo;
 $("btnLeave").onclick = leaveTable;
 $("btnAlerts").onclick = enableAlerts;
 $("btnNope").onclick = () => veil("veilNope", false);
+$("btnJoinNext").onclick = () => { joiningNext = true; render(); };
+$("btnJoinLeave").onclick = () => { veil("veilJoin", false); leaveTable(); };
+$("btnSoloNow").onclick = startSolo;
 $("btnSkip").onclick = skipTurn;
 $("btnAbandon").onclick = abandonGame;
-$("btnQuote").onclick = () => postQuote($("quoteInput").value);
-$("btnSkipQuote").onclick = () => postQuote("");
+$("quoteInput").addEventListener("input", () => clearTimeout(quoteTimer));
+$("btnQuote").onclick = () => { clearTimeout(quoteTimer); postQuote($("quoteInput").value); };
+$("btnSkipQuote").onclick = () => { clearTimeout(quoteTimer); postQuote("").then(backToTable); };
 $("btnDone").onclick = backToTable;
 $("openRules1").onclick = () => veil("veilRules", true);
 $("openRules2").onclick = () => veil("veilRules", true);
@@ -1122,6 +1331,28 @@ $("openHall1").onclick = openHall;
 $("closeHall").onclick = () => veil("veilHall", false);
 $("myName").addEventListener("change", () => store.set("zonk.name", myName()));
 $("myName").addEventListener("keydown", e => { if(e.key === "Enter") sitDown(); });
+
+/* ---------------------------------------------------------------
+   GitHub Pages caches HTML for ten minutes and gives no way to change
+   that, and phones hold it far longer. So the page checks itself: it
+   re-fetches its own source bypassing the cache, and if the deployed
+   VERSION differs from the one running, it reloads onto that version.
+   No query string to remember, no stale build the next morning.
+   --------------------------------------------------------------- */
+async function checkForUpdate(){
+  try{
+    const r = await fetch(location.pathname + "?cb=" + Date.now(), { cache: "no-store" });
+    if(!r.ok) return;
+    const m = (await r.text()).match(/const VERSION = "([^"]+)"/);
+    if(m && m[1] !== VERSION) location.replace(location.pathname + "?v=" + m[1]);
+  }catch(e){}
+}
+checkForUpdate();
+setInterval(checkForUpdate, 5 * 60 * 1000);
+setInterval(() => { if(G()) reapStaleGame(G()); }, 60 * 1000);
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible") checkForUpdate();
+});
 
 /* come straight back after a refresh or a dropped connection */
 loadRoster();
