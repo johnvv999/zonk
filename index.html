@@ -237,6 +237,13 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .entry .when{color:#8A7A6D;font-size:12px;white-space:nowrap}
 .entry .q{margin:7px 0;font-size:15px;color:var(--cream);font-style:italic}
 .entry .line{color:var(--muted);font-size:13px}
+/* The opening art, over everything until it is dismissed. */
+#splash{position:fixed;inset:0;z-index:80;display:none;
+  align-items:center;justify-content:center;background:var(--table)}
+#splash.on{display:flex}
+#splash img{width:auto;height:auto;max-width:100%;max-height:100%;
+  opacity:0;transition:opacity .35s ease}
+#splash img.in{opacity:1}
 #toast{position:fixed;left:12px;right:12px;bottom:16px;z-index:60;display:none;
   background:#5A2C26;border:1px solid #9A4A40;color:#FFE6E2;padding:12px 14px;
   border-radius:10px;font-size:14px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.5);
@@ -352,6 +359,8 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <button class="big-btn quiet" id="btnNope" style="max-width:340px">Fine</button>
 </div>
 
+<div id="splash" class="on"><img id="splashArt" alt="Zonk"></div>
+
 <div class="veil" id="veilZonk">
   <h2 class="zonk-word" id="zonkWord">ZONK</h2>
   <img id="ptfArt" alt="Pack the F@#&#9733;&amp;R">
@@ -453,6 +462,8 @@ const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
 // Shown instead of the word on a PTF. Tagged with VERSION so a redraw of the
 // art is picked up too - the filename alone would sit in caches.
 const PTF_ART = "ptf.webp?v=" + VERSION;
+const SPLASH_ART = "splash.webp?v=" + VERSION;
+const SPLASH_MS = 3000;      // how long the opening art holds
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 // Cube rotation that swings a given face to the front. Pairs with the .f1-.f6
@@ -463,6 +474,20 @@ const FACE_ROT = {
 };
 const COLORS = ["red","red","white","white","green","green"];
 const $ = id => document.getElementById(id);
+
+/* The opening art. Set up first thing so nothing further down can fail and
+   leave a player staring at it: every exit path clears the cover, including a
+   tap, a load error, and a backstop timer. */
+(function openingArt(){
+  const el = $("splash"), img = $("splashArt");
+  let dropped = false;
+  const drop = () => { if(dropped) return; dropped = true; el.classList.remove("on"); };
+  img.onload  = () => { img.classList.add("in"); setTimeout(drop, SPLASH_MS); };
+  img.onerror = drop;                            // nothing to show; don't linger
+  el.onclick  = drop;                            // let anyone skip it
+  setTimeout(drop, SPLASH_MS + 3000);            // never trap anyone behind it
+  img.src = SPLASH_ART;
+})();
 
 const configured = !!firebaseConfig.databaseURL && !firebaseConfig.databaseURL.includes("PASTE");
 let db = null;
@@ -796,8 +821,31 @@ function leaveTable(){
   store.del("zonk.seated");
   veil("veilWin", false); veil("veilZonk", false);
   wasMyTurn = false; archived = false; joiningNext = false; soloGame = null;
+  dropSolo();
   cpuBusy = false; mySel.clear();
   show("home");
+}
+
+/* A solo game lives only in memory, so a phone that discards the page while you
+   are in another app used to drop you back at the opening screen. Keeping a copy
+   on the device means you come back to the table you left. Only this device ever
+   sees it - a solo game never touches the shared table. */
+function saveSolo(){
+  try{ store.set("zonk.solo", JSON.stringify(soloGame)); }catch(e){}
+}
+function dropSolo(){ store.del("zonk.solo"); }
+function restoreSolo(){
+  let g = null;
+  try{ g = JSON.parse(store.get("zonk.solo") || "null"); }catch(e){}
+  // Anything we can't safely resume is dropped rather than half-restored: a game
+  // belonging to a previous identity, one already finished (restoring it would
+  // post a second hall entry), or one past the hour a game is allowed to sit.
+  if(!g || !g.order || g.order[0] !== myId || g.over
+     || Date.now() - (g.started || g.stamp || 0) > GAME_MAX_MS){
+    if(g) dropSolo();
+    return null;
+  }
+  return g;
 }
 
 function startSolo(){
@@ -818,6 +866,7 @@ function startSolo(){
   remove(ref(db, "table/players/" + myId)).catch(()=>{});
   joiningNext = false;
   cpuBusy = false;
+  saveSolo();
   veil("veilJoin", false);
   render();
 }
@@ -825,6 +874,7 @@ function startSolo(){
 function endSolo(){
   cpuBusy = false;
   soloGame = null;
+  dropSolo();
   archived = false;
   wasMyTurn = false;
   veil("veilWin", false);
@@ -1227,7 +1277,9 @@ function renderGame(){
 // Alerts, overlays and the stuck-game timers. Runs on every render, including
 // the bare between-turns screen, so nothing is left showing from the last turn.
 function afterRender(g, myTurn){
-  if(myTurn && !wasMyTurn && !g.over) alertMyTurn();
+  // Solo is one player on one device: buzzing and chiming at yourself between
+  // your own turns is just noise. The wake lock is separate and still applies.
+  if(myTurn && !wasMyTurn && !g.over && !soloGame) alertMyTurn();
   wasMyTurn = myTurn;
 
   if(soloGame && !g.over && g.order[g.turn] === CPU) cpuTurn();
@@ -1385,7 +1437,7 @@ function clean(o){
 }
 
 function writeGame(obj, what){
-  if(soloGame){ soloGame = clean(obj); render(); return; }
+  if(soloGame){ soloGame = clean(obj); saveSolo(); render(); return; }
   try{
     return set(gameRef(), clean(obj)).catch(err => {
       toast("Couldn't " + what + ": " + (err && err.message ? err.message : err));
@@ -1725,7 +1777,16 @@ document.addEventListener("visibilitychange", () => {
 });
 
 /* come straight back after a refresh or a dropped connection */
-if(configured && store.get("zonk.seated") && store.get("zonk.name")) sitDown();
+const resumed = restoreSolo();
+if(resumed){
+  // Straight back into the solo game, without sitting down at the shared table -
+  // startSolo deliberately stepped away from it.
+  seated = true;
+  soloGame = resumed;
+  render();
+} else if(configured && store.get("zonk.seated") && store.get("zonk.name")){
+  sitDown();
+}
 </script>
 </body>
 </html>

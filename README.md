@@ -11,6 +11,7 @@ Free tier throughout, no payment method required.
 | `index.html` | The whole game. The only file you need to edit. |
 | `database.rules.json` | Security rules to paste into the Firebase console. |
 | `local-passphone.html` | Earlier single-device version. No Firebase, no internet. Keep or delete. |
+| `splash.webp` | The opening art, shown for three seconds on every launch. |
 | `ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
 | `.github/workflows/deploy.yml` | Builds and publishes the site, stamping `VERSION` on the way out. |
 
@@ -132,6 +133,12 @@ bottom. Skipping banks nothing for that player and moves on.
 
 A player who reloads or reconnects rejoins their game automatically — their
 identity is stored on their device.
+
+A solo game is kept on the device too, so leaving the app and coming back drops
+you where you left off rather than at the opening screen. It is discarded once
+the game ends, or after the same one-hour limit that clears an abandoned table.
+Solo games don't sound turn alerts — it's one player on one device, so there is
+nobody to notify.
 
 ## The hall of fame
 
