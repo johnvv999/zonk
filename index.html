@@ -1400,16 +1400,23 @@ function afterRender(g, myTurn){
     // Both timers below exist for an absent human. In a solo game the other
     // player is a computer this same device drives, so it is never absent -
     // and "Abandon Game?" sits on screen throughout, so nothing is stranded.
+    //
+    // The manual link is for the people waiting; nobody is offered the chance
+    // to skip themselves.
     if(!soloGame && !myTurn && g.order.length > 1){
       escTimer = setTimeout(() => $("btnSkip").classList.add("on"),
         Math.max(1500, IDLE_SKIP_MS - since));
-      // Nobody should wait on an absent player. Watching phones stagger their
-      // timers so the first one awake moves the game on.
-      if(!g.zonk){
-        const lag = g.order.indexOf(myId);
-        autoSkipTimer = setTimeout(skipTurn,
-          Math.max(2000, TURN_LIMIT_MS - since) + (lag < 0 ? 1200 : lag * 400));
-      }
+    }
+    // The turn limit is enforced by the active player's own phone first, so it
+    // holds even when every other phone is asleep with its timers throttled.
+    // The watchers still arm behind it, staggered, for the case where that
+    // phone is the one that has gone away. Whoever fires first wins: skipTurn
+    // refuses a turn under a minute old, so the timers behind it do nothing
+    // once the game has moved on.
+    if(!soloGame && !g.zonk && g.order.length > 1){
+      const seat = g.order.indexOf(myId);
+      const lag = myTurn ? 0 : 800 + (seat < 0 ? 1200 : seat * 400);
+      autoSkipTimer = setTimeout(skipTurn, Math.max(2000, TURN_LIMIT_MS - since) + lag);
     }
     abandonTimer = setTimeout(() => $("btnAbandon").classList.add("on"),
       Math.max(2000, ABANDON_MS - since));

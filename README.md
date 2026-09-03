@@ -131,6 +131,13 @@ Cellular being what it is, a player will occasionally vanish mid-turn. After 60
 seconds with no activity, everyone else sees a **skip their turn** link at the
 bottom. Skipping banks nothing for that player and moves on.
 
+At two minutes the turn is skipped automatically. The active player's own phone
+enforces this, so it holds even if every other phone is asleep with its timers
+throttled; the watching phones arm behind it, staggered, for the case where that
+phone is the one that has gone away. Whichever fires first wins — a turn under a
+minute old is refused, so the timers behind it do nothing. Solo games are exempt,
+since nobody is waiting on you.
+
 A player who reloads or reconnects rejoins their game automatically — their
 identity is stored on their device.
 
