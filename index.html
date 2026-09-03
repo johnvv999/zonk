@@ -95,9 +95,6 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .tally{font-family:var(--display);font-weight:800;font-size:42px;line-height:1;color:var(--brass);font-variant-numeric:tabular-nums}
 .tally.pop{animation:pop .35s ease}
 @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.15)}100%{transform:scale(1)}}
-.hint{min-height:22px;color:var(--muted);font-size:14px;padding:0 2px 6px}
-.hint.warn{color:var(--danger)}
-.hint.good{color:var(--brass)}
 
 .tray{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;
   background:var(--felt);border:1px solid var(--edge);border-radius:16px;
@@ -105,6 +102,10 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .row{display:flex;justify-content:center;gap:11px;flex-wrap:wrap}
 .kept-row{padding-top:12px;border-top:1px dashed var(--edge);min-height:56px;align-items:center}
 .kept-note{color:#7E6E62;font-size:13px;text-align:center;width:100%}
+.turn-note{width:100%;text-align:center;font-family:var(--display);font-weight:700;
+  font-size:clamp(24px,7vw,34px);color:var(--brass);line-height:1.2}
+.turn-note small{display:block;font-family:inherit;font-weight:500;font-size:15px;
+  color:var(--muted);margin-top:8px}
 
 .die{width:62px;height:62px;border-radius:13px;flex:none;position:relative;
   display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:3px;padding:9px;
@@ -225,7 +226,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <div class="plist" id="lobbyList"></div>
   <button class="big-btn quiet" id="btnAlerts">Turn on turn alerts</button>
   <div class="rulecard">
-    Playing to <b>10,000</b>. Bank at <b>300</b>, or <b>500</b> for your first score.
+    Playing to <b>10,000</b>. Stop at <b>300</b>, or <b>500</b> for your first score.
     All six dice scoring means <b>hot dice</b> — you pick them all back up and must roll again.
   </div>
   <div class="err" id="lobbyErr"></div>
@@ -242,7 +243,6 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <div class="label"><b id="whoNow">-</b> <span id="phase"></span></div>
     <div class="tally" id="tally">0</div>
   </div>
-  <div class="hint" id="hint"></div>
   <div class="tray">
     <div class="row" id="trayRow"></div>
     <div class="row kept-row" id="keptRow"></div>
@@ -270,7 +270,6 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 
 <div class="veil" id="veilZonk">
   <h2 class="zonk-word">ZONK</h2>
-  <p id="zonkText"></p>
 </div>
 
 <div class="veil" id="veilWin">
@@ -299,7 +298,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <h3>Your turn</h3>
     <ul>
       <li>Every roll, keep at least one scoring die. Dice that don't score can't be kept.</li>
-      <li>Bank once you have 300 in the turn, or 500 if you haven't scored yet this game. Setting aside four or five dice also unlocks banking.</li>
+      <li>Bank once you have 300 in the turn, or 500 if you haven't scored yet this game.</li>
       <li>A roll with nothing scoring is a zonk: turn over, turn points gone.</li>
       <li>All six dice set aside is hot dice - they come back and you have to roll again. No banking on six for six.</li>
     </ul>
@@ -593,7 +592,7 @@ function dieNode(i, face, state, small, interactive){
   const el = document.createElement(interactive ? "button" : "div");
   el.className = "die " + COLORS[i]
     + (state === "kept" ? " kept" : "")
-    + (state === "sel" ? " pending" : "");
+    + (state === "sel" ? (small ? " pending" : " sel") : "");
   for(let k=0;k<9;k++){
     const cell = document.createElement("span");
     if(PIPS[face].includes(k)) cell.className = "pip";
@@ -709,13 +708,47 @@ function renderGame(){
     else if(st === "sel") pendIdx.push(i);
     else trayIdx.push(i);
   });
-  trayIdx.forEach(i => tray.append(dieNode(i, faces[i], "tray", false, canTap)));
+  if(!g.rolled){
+    // Between turns the table is bare - no dice from the last player's roll.
+    const note = document.createElement("div");
+    note.className = "turn-note";
+    note.textContent = (g.names[active] || "Player") + "'s turn";
+    if(g.points){
+      const sub = document.createElement("small");
+      sub.textContent = "Holding " + g.points.toLocaleString();
+      note.append(sub);
+    }
+    tray.append(note);
+    drawActions(g, myTurn, selFaces, selScore, running);
+    afterRender(g, myTurn);
+    return;
+  }
+
+  // Each selected die is judged on its own. Ones and fives score alone, so they
+  // drop straight below the line. A 2/3/4/6 only counts as part of a triple, so
+  // it waits up top with a brass ring until the third one joins it - then all
+  // three go down together. A pick that scores as a whole (straight, three
+  // pairs) drops entire.
+  const down = [], up = [];
+  if(pendIdx.length && selScore !== null){
+    down.push(...pendIdx);
+  } else {
+    const c = [0,0,0,0,0,0,0];
+    pendIdx.forEach(i => c[faces[i]]++);
+    pendIdx.forEach(i => {
+      const f = faces[i];
+      ((f === 1 || f === 5 || c[f] >= 3) ? down : up).push(i);
+    });
+  }
+  const upTop = trayIdx.concat(up).sort((a,b) => a - b);
+  upTop.forEach(i =>
+    tray.append(dieNode(i, faces[i], states[i] === "sel" ? "sel" : "tray", false, canTap)));
   keptIdx.forEach(i => kept.append(dieNode(i, faces[i], "kept", true, false)));
-  pendIdx.forEach(i => kept.append(dieNode(i, faces[i], "sel",  true, canTap)));
-  if(!keptIdx.length && !pendIdx.length){
+  down.forEach(i => kept.append(dieNode(i, faces[i], "sel", true, canTap)));
+  if(!keptIdx.length && !down.length){
     const n = document.createElement("div");
     n.className = "kept-note";
-    n.textContent = g.rolled ? (myTurn ? "Tap the dice you want to keep" : "") : "";
+    n.textContent = "";
     kept.append(n);
   }
 
@@ -740,13 +773,18 @@ function renderGame(){
     });
   }
 
+  afterRender(g, myTurn);
+}
+
+// Alerts, overlays and the stuck-game timers. Runs on every render, including
+// the bare between-turns screen, so nothing is left showing from the last turn.
+function afterRender(g, myTurn){
   if(myTurn && !wasMyTurn && !g.over) alertMyTurn();
   wasMyTurn = myTurn;
 
   veil("veilZonk", !!g.zonk);
   clearTimeout(zonkTimer);
   if(g.zonk){
-    $("zonkText").textContent = g.zonkText || "";
     // The roller advances first. Every other phone holds a fallback timer, so a
     // reload or a dropped connection can never strand the game on this screen.
     const mine = g.order[g.turn] === myId;
@@ -772,17 +810,15 @@ function renderGame(){
 
 
 function drawActions(g, myTurn, selFaces, selScore, running){
-  const box = $("actions"), hint = $("hint");
-  hint.className = "hint";
+  const box = $("actions");
   box.innerHTML = "";
-  if(g.over){ hint.textContent = ""; return; }
+  if(g.over) return;
 
   if(!myTurn){
     const w = document.createElement("div");
     w.className = "watching";
     w.textContent = "Watching " + g.names[g.order[g.turn]];
     box.append(w);
-    hint.textContent = g.points ? "On the table: " + g.points.toLocaleString() : "";
     return;
   }
 
@@ -797,18 +833,14 @@ function drawActions(g, myTurn, selFaces, selScore, running){
     roll.textContent = "Roll";
     bank.textContent = entered ? "Done" : "Need 500";
     bank.onclick = () => nope("Roll the dice first.");
-    hint.textContent = g.points ? "Held this turn: " + g.points.toLocaleString() : "";
     return;
   }
 
   const valid = selFaces.length > 0 && selScore !== null;
-  const keptCount = g.states.filter(x => x==="kept").length;
-  const setAside = selFaces.length + keptCount;
   const left = g.live - selFaces.length;
   const hotDice = valid && left === 0;
-  const canBank = valid && !hotDice && (entered
-    ? (running >= 300 || setAside === 4 || setAside === 5)
-    : running >= 500);
+  // Score is the only gate: 500 to enter the game, 300 to bank after that.
+  const canBank = valid && !hotDice && (running >= (entered ? 300 : 500));
 
   roll.disabled = !valid;
   roll.textContent = "Roll";
@@ -818,26 +850,9 @@ function drawActions(g, myTurn, selFaces, selScore, running){
     if(!selFaces.length)      nope("You haven't set any dice aside.");
     else if(selScore === null) nope("One of those doesn't score on its own.");
     else if(hotDice)           nope("All six scored. You have to roll again.");
-    else if(!entered)          nope("500 gets you into the game. You're at "
-                                    + running.toLocaleString() + ".");
-    else                       nope("300 is the floor to bank. You're at "
-                                    + running.toLocaleString() + ".");
+    else nope("You need " + (entered ? "300" : "500") + ". You're at "
+              + running.toLocaleString() + ".");
   };
-
-  if(!selFaces.length) hint.textContent = "Keep at least one scoring die.";
-  else if(selScore === null){
-    hint.className = "hint warn";
-    hint.textContent = "One of those doesn't score on its own.";
-  } else if(hotDice){
-    hint.className = "hint good";
-    hint.textContent = "All six score - you have to roll again.";
-  } else if(!canBank){
-    hint.textContent = entered ? "" : "Keep rolling - 500 gets you into the game.";
-  } else {
-    hint.className = "hint good";
-    hint.textContent = entered ? "Good to bank or push on."
-                               : "That's your entry. Bank it or press on.";
-  }
 }
 
 /* ---------- actions: only the active player writes ---------- */
