@@ -450,7 +450,7 @@ const TURN_LIMIT_MS = 120000;   // quiet this long and the skip button appears
 const TOUCH_EVERY_MS = 20000;   // how often picking dice marks the turn alive
 const ZONK_STREAK_PTF = 3;
 const QUOTE_WAIT_MS = 30000;      // winner has this long to start typing
-const GAME_MAX_MS = 60 * 60 * 1000;  // an unfinished game is cleared after an hour
+const GAME_MAX_MS = 60 * 60 * 1000;  // a game nobody has touched for an hour is cleared
 const SEAT_IDLE_MS = 60 * 60 * 1000; // a seat silent this long is cleared
 const SEEN_EVERY_MS = 10 * 60 * 1000; // how often a seated phone says it is still here
 const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
@@ -845,7 +845,7 @@ function restoreSolo(){
   // belonging to a previous identity, one already finished (restoring it would
   // post a second hall entry), or one past the hour a game is allowed to sit.
   if(!g || !g.order || g.order[0] !== myId || g.over
-     || Date.now() - (g.started || g.stamp || 0) > GAME_MAX_MS){
+     || Date.now() - lastSeenOnTurn(g) > GAME_MAX_MS){
     if(g) dropSolo();
     return null;
   }
@@ -1084,6 +1084,17 @@ function renderLobby(){
    somebody opens it. */
 function touchSeat(){
   if(!configured || !seated || soloGame) return;
+  const name = store.get("zonk.name");
+  if(!name) return;                       // never write a seat without a name on it
+  const mine = table && table.players ? table.players[myId] : null;
+  if(!mine){
+    // Our seat has gone: the phone slept, the connection dropped, onDisconnect
+    // fired. Come back as a whole player. Writing just the mark here is what
+    // used to leave nameless stubs sitting in the lobby.
+    set(ref(db, "table/players/" + myId),
+        { name, joined: Date.now(), seen: Date.now() }).catch(()=>{});
+    return;
+  }
   set(ref(db, "table/players/" + myId + "/seen"), Date.now()).catch(()=>{});
 }
 
@@ -1100,7 +1111,7 @@ function reapStaleSeats(){
 
 function reapStaleGame(g){
   if(!g || g.over) return false;
-  if(Date.now() - (g.started || g.stamp || 0) < GAME_MAX_MS) return false;
+  if(Date.now() - lastSeenOnTurn(g) < GAME_MAX_MS) return false;
   if(soloGame){ endSolo(); }
   else remove(gameRef()).catch(()=>{});
   return true;

@@ -142,6 +142,10 @@ from whichever came last.
 
 Solo games are exempt, since nobody is waiting on you.
 
+An hour of complete quiet clears an unfinished game, but that hour is counted
+from the last thing that happened in it, not from when it started — a long game
+that is still being played is never cleared out from under you.
+
 A player who reloads or reconnects rejoins their game automatically — their
 identity is stored on their device.
 
