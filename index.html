@@ -490,6 +490,7 @@ const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
 const ROLLOFF_MAX_MS = 5 * 60 * 1000;
 const CC_DELAY_MS = 3000;   // read the roll that did it before the screen
 const CC_HOLD_MS = 8000;   // the colour-coded screen holds
+const CC_ART_WAIT_MS = 3000; // how long to wait on the picture before using words
 const ROLL_SHOW_MS = 4000;   // long enough to read the losing dice
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
@@ -519,7 +520,8 @@ const $ = id => document.getElementById(id);
 (function openingArt(){
   const el = $("splash"), img = $("splashArt");
   let dropped = false;
-  const drop = () => { if(dropped) return; dropped = true; el.classList.remove("on"); };
+  const drop = () => { if(dropped) return; dropped = true; el.classList.remove("on");
+                       try{ preloadCcArt(); }catch(e){} };
   img.onload  = () => { img.classList.add("in"); setTimeout(drop, SPLASH_MS); };
   img.onerror = drop;                            // nothing to show; don't linger
   el.onclick  = drop;                            // let anyone skip it
@@ -588,6 +590,30 @@ function anyScore(dice){
 // Three pairs where both dice of each pair share a colour. Written against the
 // COLORS table rather than assuming which dice are twins, so it still holds if
 // two pairs happen to be the same colour as each other.
+/* The colour-coded screen is the picture. If it has not arrived yet the reveal
+   waits on it rather than putting words up in its place, and only falls back to
+   those if the download fails outright or takes longer than anyone would sit
+   through. */
+function showColorCoded(){
+  const art = $("ccArt");
+  const reveal = ready => {
+    art.classList.toggle("on", ready);
+    $("ccWord").classList.toggle("off", ready);
+    $("ccSub").classList.toggle("off", ready);
+    veil("veilColor", true);
+    try{ if(navigator.vibrate) navigator.vibrate([50,50,50,50,50]); }catch(e){}
+    clearTimeout(ccHideTimer);
+    ccHideTimer = setTimeout(() => veil("veilColor", false), CC_HOLD_MS);
+  };
+  if(art.complete && art.naturalWidth > 0) return reveal(true);
+  preloadCcArt();
+  let settled = false;
+  const go = ready => { if(settled) return; settled = true; reveal(ready); };
+  art.addEventListener("load",  () => go(true),  { once: true });
+  art.addEventListener("error", () => go(false), { once: true });
+  setTimeout(() => go(art.complete && art.naturalWidth > 0), CC_ART_WAIT_MS);
+}
+
 function colorCoded(faces, states){
   if(!faces || faces.length !== 6) return false;
   if(states && states.some(st => st === "kept")) return false;
@@ -1414,16 +1440,7 @@ function afterRender(g, myTurn){
      && colorCoded(g.faces, g.states)){
     ccFor = g.stamp;
     const since = Date.now() - g.stamp;
-    ccTimer = setTimeout(() => {
-      const art = $("ccArt");
-      const useArt = art.complete && art.naturalWidth > 0;
-      art.classList.toggle("on", useArt);
-      $("ccWord").classList.toggle("off", useArt);
-      $("ccSub").classList.toggle("off", useArt);
-      veil("veilColor", true);
-      try{ if(navigator.vibrate) navigator.vibrate([50,50,50,50,50]); }catch(e){}
-      ccHideTimer = setTimeout(() => veil("veilColor", false), CC_HOLD_MS);
-    }, Math.max(0, CC_DELAY_MS - since));
+    ccTimer = setTimeout(showColorCoded, Math.max(0, CC_DELAY_MS - since));
   }
 
   preloadPtfArt(g);
