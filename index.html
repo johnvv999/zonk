@@ -426,6 +426,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <h3>Your turn</h3>
     <ul>
       <li>Every roll, keep at least one scoring die. Dice that don't score can't be kept.</li>
+      <li>To stop, you need four dice set aside as well as the points. Under four and you have to roll on.</li>
       <li>Bank once you have 300 in the turn, or 500 if you haven't scored yet this game.</li>
       <li>A roll with nothing scoring is a zonk: turn over, turn points gone.</li>
       <li>All six dice set aside is hot dice - they come back and you have to roll again. No banking on six for six.</li>
@@ -492,6 +493,7 @@ const CC_HOLD_MS = 8000;   // the colour-coded screen holds
 const ROLL_SHOW_MS = 4000;   // long enough to read the losing dice
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
+const BANK_MIN_DICE = 4;     // dice set aside before a turn may be ended
 const ZONK_WORD_MS = 900;    // the word's spin-and-swell entrance
 const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
 // Shown instead of the word on a PTF. Tagged with VERSION so a redraw of the
@@ -626,6 +628,7 @@ const CPU_CAP = { 1: 350, 2: 450, 3: 700, 4: 1200, 5: 2000 };
 
 function cpuShouldRoll(g, best, total){
   if(best.left === 0) return true;                       // hot dice, free reroll
+  if(6 - best.left < BANK_MIN_DICE) return true;         // not enough set aside to stop
   if(total < (g.entered[CPU] ? 300 : 500)) return true;  // can't stop anyway
   const human = g.order.find(p => p !== CPU);
   const behind = (g.scores[human] || 0) - (g.scores[CPU] || 0);
@@ -1522,19 +1525,32 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   const valid = selFaces.length > 0 && selScore !== null;
   const left = g.live - selFaces.length;
   const hotDice = valid && left === 0;
-  // Score is the only gate: 500 to enter the game, 300 to bank after that.
-  const canBank = valid && !hotDice && (running >= (entered ? 300 : 500));
+  // Two gates on ending a turn. The score: 500 to enter the game, 300 after
+  // that. And the count: four dice set aside. Everything kept this run plus
+  // whatever is going down now, which is the same as six minus what is left.
+  const setAside = 6 - left;
+  const need = entered ? 300 : 500;
+  const enoughDice = setAside >= BANK_MIN_DICE;
+  const canBank = valid && !hotDice && enoughDice && running >= need;
 
   roll.disabled = !valid;
   roll.textContent = "Roll";
-  bank.textContent = entered ? "Done" : (canBank ? "Enter Cosmos" : "Need 500");
+  // Say which gate is shut, rather than "Done" over a button that will refuse.
+  bank.textContent =
+      canBank                                    ? (entered ? "Done" : "Enter Cosmos")
+    : !valid || hotDice                          ? (entered ? "Done" : "Need 500")
+    : !enoughDice                                ? "Need " + BANK_MIN_DICE + " dice"
+    : running < need                             ? "Need " + need
+    :                                              (entered ? "Done" : "Enter Cosmos");
   bank.onclick = () => {
     if(canBank) return doBank();
     if(!selFaces.length)      nope("You haven't set any dice aside.");
     else if(selScore === null) nope("One of those doesn't score on its own.");
     else if(hotDice)           nope("All six scored. You have to roll again.");
-    else nope("You need " + (entered ? "300" : "500") + ". You're at "
-              + running.toLocaleString() + ".");
+    else if(!enoughDice)
+      nope("You need " + BANK_MIN_DICE + " dice set aside to stop. You have "
+           + setAside + ". Roll on.");
+    else nope("You need " + need + ". You're at " + running.toLocaleString() + ".");
   };
 }
 

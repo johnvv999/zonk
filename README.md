@@ -228,9 +228,15 @@ Standard six-die chart: 1s are 100, 5s are 50, three of a kind is 100 × face
 (1000 for three 1s), four of a kind doubles it, five of a kind quadruples it, six
 of a kind is 3000, a 1–6 straight is 1500, three pairs is 1500.
 
-Keep at least one scoring die per roll. Bank at 300 in the turn, 500 for your first
-score of the game, or with four or five dice set aside. Zonk wipes the turn. All
-six dice scoring goes hot. Reaching the target triggers a final round.
+Keep at least one scoring die per roll. Zonk wipes the turn. All six dice scoring
+goes hot. Reaching the target triggers a final round.
+
+Stopping has two gates, and both must be open. The points: 300 in the turn, or
+500 for your first score of the game. And the dice: **four set aside**. A big
+score doesn't buy you out of the second one — three 1s is 1000 and still only
+three dice, so you roll on. What counts is everything kept in the current run of
+six plus whatever is going down now; hot dice bring all six back, so the count
+starts again with them.
 
 Three pairs is strict — three distinct values with exactly two each. Some tables
 count four-of-a-kind plus a pair; that's a change in `scoreSet()`.
@@ -239,7 +245,7 @@ count four-of-a-kind plus a pair; that's a change in `scoreSet()`.
 
 - `scoreSet(dice)` — best score for a set, or `null` if a die is dead weight.
 - `anyScore(dice)` — zonk detection.
-- `bankFloor(g)` — the 300/500 entry threshold.
+- `drawActions(g, …)` — the two gates on stopping: the 300/500 score and the four dice.
 - `advance(gained)` — end of turn, final-round trigger, winner selection.
 - `alertMyTurn()` — vibrate, chime, notify.
 - `saveToHall(g)` — the one write to `/archive`.
