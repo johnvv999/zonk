@@ -110,6 +110,10 @@ Send them the URL. Each person:
    Zonk icon that opens without browser chrome. On iPhone this also matters for
    notifications — see the alerts section below.
 
+   Either way there's a **Play without installing** button next to it, and taking
+   it is remembered — saying no once isn't saying no every visit. Nothing at all
+   is offered once the app is installed.
+
    On iPhone it has to be **Safari**. Every iOS browser is the same WebKit
    underneath, so the game plays fine in any of them, but only a home screen app
    added from Safari runs standalone and can be notified — what the others add is
