@@ -1963,11 +1963,21 @@ async function openHall(){
               || navigator.standalone === true;
   }catch(e){}
   if(standalone) return;                       // already on the home screen
-  if(store.get("zonk.noinstall")) return;      // they have asked to be left alone
 
-  // Whichever offer is up, there is a way past it - and it is remembered, so
-  // saying no once is not saying no every visit.
-  skip.onclick = () => { store.set("zonk.noinstall", "1"); hideOffer(); };
+  /* Whichever offer is up, there is a way past it. Sat aside for this visit
+     only - sessionStorage rather than store, so a reload inside the session
+     keeps it away (the page reloads itself on a new version) but coming back
+     later offers again. If sessionStorage is barred, as it is in a private
+     window, the offer simply returns on the next load. */
+  const setAsideAlready = () => {
+    try{ return sessionStorage.getItem("zonk.noinstall") === "1"; }catch(e){ return false; }
+  };
+  if(setAsideAlready()) return;
+
+  skip.onclick = () => {
+    try{ sessionStorage.setItem("zonk.noinstall", "1"); }catch(e){}
+    hideOffer();
+  };
 
   let deferred = null;
   addEventListener("beforeinstallprompt", e => {
