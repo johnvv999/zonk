@@ -103,10 +103,16 @@ there's nothing else to configure.
 Send them the URL. Each person:
 
 1. Opens the link and types their own name.
-2. **Add to Home Screen** (iPhone: Share → Add to Home Screen. Android: ⋮ menu →
-   Add to Home screen, or *Install app* if Chrome offers it). It lands as a Zonk
-   icon that opens without browser chrome. On iPhone this also matters for
+2. **Add to Home Screen.** The home screen offers this itself: on Android an
+   *Add Zonk to your home screen* button appears and opens Chrome's own install
+   dialog; on iPhone a line points at Share → Add to Home Screen, since iOS has
+   no install API to call. Both stay hidden once it's installed. It lands as a
+   Zonk icon that opens without browser chrome. On iPhone this also matters for
    notifications — see the alerts section below.
+
+   There's no link that does this — neither platform has an install URL, so the
+   offer has to come from the page. Sending the URL is all you can do; the page
+   takes it from there.
 3. One person taps **Start a new room** and reads out the 4-character code.
    Everyone else types the code and taps **Join room**.
 4. Everyone taps **Turn on turn alerts** in the lobby.

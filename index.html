@@ -310,6 +310,11 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 
   <div class="spacer"></div>
 
+  <button class="big-btn quiet" id="btnInstall" style="display:none">Add Zonk to your home screen</button>
+  <p id="installHint" class="tagline" style="display:none">
+    To keep Zonk on your home screen: tap <b>Share</b>, then <b>Add to Home Screen</b>.
+  </p>
+
   <div style="display:flex;justify-content:center;gap:6px">
     <button class="ghost" id="openRules1">Rules</button>
     <button class="ghost" id="openHall1">Hall of fame</button>
@@ -1938,6 +1943,45 @@ async function openHall(){
 }
 
 /* ---------- wiring ---------- */
+/* There is no link that installs a web app - neither platform has one. The
+   closest thing is offering it from the page. Android fires
+   beforeinstallprompt, which can be held and fired later from a button; iOS has
+   no install API at all, so the best it can do is say where the button is. Both
+   stay hidden once it is already installed. */
+(function offerInstall(){
+  const btn = $("btnInstall"), hint = $("installHint");
+  let standalone = false;
+  try{
+    standalone = matchMedia("(display-mode: standalone)").matches
+              || navigator.standalone === true;
+  }catch(e){}
+  if(standalone) return;                       // already on the home screen
+
+  let deferred = null;
+  addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();                        // hold it for the button
+    deferred = e;
+    hint.style.display = "none";
+    btn.style.display = "";
+  });
+  btn.onclick = async () => {
+    if(!deferred) return;
+    btn.style.display = "none";
+    const prompt = deferred; deferred = null;
+    try{ await prompt.prompt(); }catch(e){}
+  };
+  addEventListener("appinstalled", () => {
+    btn.style.display = "none";
+    hint.style.display = "none";
+  });
+
+  // iOS never fires that event, so tell them where the button is instead.
+  const ua = navigator.userAgent;
+  if(/iPhone|iPad|iPod/i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua)){
+    hint.style.display = "";
+  }
+})();
+
 $("btnSit").onclick = sitDown;
 $("btnStart").onclick = startGame;
 $("btnSolo").onclick = startSolo;
