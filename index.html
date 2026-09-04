@@ -365,6 +365,13 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 
 <div id="toast"></div>
 
+<div class="veil" id="veilWaiting">
+  <h2 id="waitingHead"></h2>
+  <p>Want to abandon current game?</p>
+  <button class="big-btn" id="btnWaitingYes">Yes</button>
+  <button class="big-btn quiet" id="btnWaitingNo" style="max-width:340px">No</button>
+</div>
+
 <div class="veil" id="veilJoin">
   <h2 id="joinHead">Game in progress</h2>
   <p id="joinSub"></p>
@@ -836,6 +843,8 @@ let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
 let zonkAnimFor = null;
 let quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
+// Newcomers this player has already said no to, so they are asked once each.
+let waitDeclined = new Set();
 let ccTimer = null, ccHideTimer = null, ccFor = null, ccSetFor = null, ccArtAsked = false;
 
 // A solo game lives only in this variable - it never touches the shared table,
@@ -940,12 +949,15 @@ function startSolo(){
   remove(ref(db, "table/players/" + myId)).catch(()=>{});
   joiningNext = false;
   cpuBusy = false;
+  waitDeclined = new Set();
   saveSolo();
   veil("veilJoin", false);
   render();
 }
 
 function endSolo(){
+  waitDeclined = new Set();
+  veil("veilWaiting", false);
   // Whatever name they were playing under, before the game is thrown away.
   // "You" is startSolo's own display placeholder, never a name to sit under.
   const played = soloGame && soloGame.names ? soloGame.names[myId] : null;
@@ -1446,6 +1458,30 @@ function afterRender(g, myTurn){
   preloadPtfArt(g);
   preloadCcArt();
 
+  /* Somebody has sat down at the shared table while this solo game is running.
+     startSolo stepped away from that table, so they are sitting there with
+     nobody to play against, and only this player can decide whether to go back.
+     Asked once per newcomer - saying no must not mean being asked again on the
+     next render - and never over the top of another screen. */
+  if(soloGame && !g.over && !g.zonk){
+    const players = (table && table.players) || {};
+    const waiting = Object.keys(players).filter(id => id !== myId && players[id].name);
+    const fresh = waiting.filter(id => !waitDeclined.has(id));
+    const busy = ["veilZonk","veilColor","veilRollout","veilWin","veilNope"]
+      .some(id => $(id).classList.contains("on"));
+    if(fresh.length && !busy){
+      const names = fresh.map(id => players[id].name);
+      $("waitingHead").textContent = names.length === 1
+        ? names[0] + " is waiting in the lobby"
+        : names[0] + " and " + (names.length - 1) + " more are waiting in the lobby";
+      veil("veilWaiting", true);
+    } else if(!waiting.length){
+      veil("veilWaiting", false);          // they gave up and left
+    }
+  } else {
+    veil("veilWaiting", false);
+  }
+
   clearTimeout(zonkTimer);
   clearTimeout(zonkShowTimer);
   if(g.zonk){
@@ -1911,6 +1947,14 @@ $("btnNope").onclick = () => veil("veilNope", false);
 $("btnJoinNext").onclick = () => { joiningNext = true; render(); };
 $("btnJoinLeave").onclick = () => { veil("veilJoin", false); leaveTable(); };
 $("btnSoloNow").onclick = startSolo;
+$("btnWaitingYes").onclick = () => { veil("veilWaiting", false); endSolo(); };
+$("btnWaitingNo").onclick = () => {
+  // Remember who was asked about, so carrying on doesn't mean being asked again
+  // every time the table changes.
+  Object.keys((table && table.players) || {})
+        .forEach(id => { if(id !== myId) waitDeclined.add(id); });
+  veil("veilWaiting", false);
+};
 $("btnRollOff").onclick = myRoll;
 $("btnCancelRoll").onclick = () => remove(rollRef()).catch(()=>{});
 $("btnQuitSolo").onclick = () => { if(soloGame) endSolo(); };

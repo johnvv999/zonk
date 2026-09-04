@@ -147,6 +147,11 @@ from whichever came last.
 
 Solo games are exempt, since nobody is waiting on you.
 
+Starting a solo game steps away from the shared table, so anyone who sits down
+while you're playing one is there on their own. When that happens you're asked
+whether to abandon the solo game and join them — once per newcomer, so saying no
+doesn't mean being asked again every time the table changes.
+
 An hour of complete quiet clears an unfinished game, but that hour is counted
 from the last thing that happened in it, not from when it started — a long game
 that is still being played is never cleared out from under you.
