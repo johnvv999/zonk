@@ -12,6 +12,7 @@ Free tier throughout, no payment method required.
 | `database.rules.json` | Security rules to paste into the Firebase console. |
 | `local-passphone.html` | Earlier single-device version. No Firebase, no internet. Keep or delete. |
 | `splash.webp` | The opening art, shown for three seconds on every launch. |
+| `manifest.json`, `icon-*.png`, `apple-touch-icon.png` | Home screen install: name, icon and standalone launch. |
 | `og.jpg` | Link preview, shown when the URL is texted or posted. |
 | `colorcoded.webp` | The full-screen art for a colour coded roll. |
 | `ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
@@ -102,8 +103,10 @@ there's nothing else to configure.
 Send them the URL. Each person:
 
 1. Opens the link and types their own name.
-2. **Add to Home Screen** (iPhone: Share → Add to Home Screen. Android: menu →
-   Add to Home screen). This matters — see the alerts section below.
+2. **Add to Home Screen** (iPhone: Share → Add to Home Screen. Android: ⋮ menu →
+   Add to Home screen, or *Install app* if Chrome offers it). It lands as a Zonk
+   icon that opens without browser chrome. On iPhone this also matters for
+   notifications — see the alerts section below.
 3. One person taps **Start a new room** and reads out the 4-character code.
    Everyone else types the code and taps **Join room**.
 4. Everyone taps **Turn on turn alerts** in the lobby.
