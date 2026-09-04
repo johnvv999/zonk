@@ -925,7 +925,8 @@ const d6 = () => 1 + Math.floor(Math.random() * 6);
 // against just the players they tied with, so a tie only reorders that block.
 function startGame(){
   const players = (table && table.players) || {};
-  const ids = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
+  const ids = Object.keys(players).filter(id => players[id].name)
+                    .sort((a,b) => players[a].joined - players[b].joined);
   if(ids.length < 2) return;   // the button is disabled below two anyway
   const names = {};
   ids.forEach(p => { names[p] = players[p].name || ""; });
@@ -1062,7 +1063,8 @@ function render(){
 function renderLobby(){
   show("lobby");
   const players = table.players || {};
-  const ids = Object.keys(players).sort((a,b) => players[a].joined - players[b].joined);
+  const ids = Object.keys(players).filter(id => players[id].name)
+                    .sort((a,b) => players[a].joined - players[b].joined);
   const list = $("lobbyList"); list.innerHTML = "";
   ids.forEach(id => {
     const row = document.createElement("div");
@@ -1103,15 +1105,16 @@ function touchSeat(){
   const name = store.get("zonk.name");
   if(!name) return;                       // never write a seat without a name on it
   const mine = table && table.players ? table.players[myId] : null;
-  if(!mine){
-    // Our seat has gone: the phone slept, the connection dropped, onDisconnect
-    // fired. Come back as a whole player. Writing just the mark here is what
-    // used to leave nameless stubs sitting in the lobby.
-    set(ref(db, "table/players/" + myId),
-        { name, joined: Date.now(), seen: Date.now() }).catch(()=>{});
-    return;
-  }
-  set(ref(db, "table/players/" + myId + "/seen"), Date.now()).catch(()=>{});
+  // Always the whole record, never one field of it. A set on a child path
+  // creates its parent, so marking alone leaves a nameless stub whenever our
+  // snapshot is out of date - and it is out of date in exactly the case that
+  // matters, since the dropped connection that fired onDisconnect is also what
+  // stopped us hearing about it.
+  set(ref(db, "table/players/" + myId), {
+    name,
+    joined: (mine && mine.joined) || Date.now(),   // keep our place in the order
+    seen: Date.now()
+  }).catch(()=>{});
 }
 
 function reapStaleSeats(){
@@ -1120,6 +1123,13 @@ function reapStaleSeats(){
   const now = Date.now();
   Object.keys(players).forEach(id => {
     if(id === myId) return;
+    // A seat with no name was never written by anyone sitting down - that write
+    // carries a name and a joined together. It is debris, whatever left it, so
+    // it goes at once rather than waiting out the hour.
+    if(!players[id].name){
+      remove(ref(db, "table/players/" + id)).catch(()=>{});
+      return;
+    }
     const last = players[id].seen || players[id].joined || 0;
     if(now - last > SEAT_IDLE_MS) remove(ref(db, "table/players/" + id)).catch(()=>{});
   });
