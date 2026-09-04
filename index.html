@@ -238,10 +238,6 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .entry .when{color:#8A7A6D;font-size:12px;white-space:nowrap}
 .entry .q{margin:7px 0;font-size:15px;color:var(--cream);font-style:italic}
 .entry .line{color:var(--muted);font-size:13px}
-#colorRunArt{display:none;position:absolute;inset:0;width:100%;height:100%;
-  object-fit:cover}
-#colorRunArt.on{display:block}
-#veilColorRun h2.off,#veilColorRun p.off{display:none}
 /* The opening art, over everything until it is dismissed. */
 #splash{position:fixed;inset:0;z-index:80;display:none;
   align-items:center;justify-content:center;background:var(--table)}
@@ -348,14 +344,8 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 </div>
 
 <div class="veil" id="veilColor">
-  <h2><span class="cc-r">Matched</span> <span class="cc-g">Pairs</span></h2>
+  <h2><span class="cc-r">Color</span> <span class="cc-g">Coded</span></h2>
   <p>Every pair matched its own colour.</p>
-</div>
-
-<div class="veil" id="veilColorRun">
-  <h2 id="colorRunWord"><span class="cc-r">Color</span> <span class="cc-g">Coded</span></h2>
-  <p id="colorRunSub">The colours ran in order. 1500.</p>
-  <img id="colorRunArt" alt="Color coded">
 </div>
 
 <div class="veil" id="veilRollout">
@@ -399,8 +389,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <dl>
       <dt>Each 1</dt><dd>100</dd><dt>Each 5</dt><dd>50</dd>
       <dt>Three of a kind</dt><dd>100 x face</dd><dt>Three 1s</dt><dd>1000</dd>
-      <dt>Straight 1-6</dt><dd>1000</dd><dt>Colour coded</dt><dd>1500</dd>
-      <dt>Three pairs</dt><dd>1500</dd>
+      <dt>Straight 1-6</dt><dd>1500</dd><dt>Three pairs</dt><dd>1500</dd>
     </dl>
     <p>Three is the whole set. A fourth matching die adds nothing on its own - unless it's a 1 or a 5, which always score singly. So four 2s is still 200, and the odd one can't be kept.</p>
     <h3>Your turn</h3>
@@ -467,9 +456,6 @@ const SEAT_IDLE_MS = 60 * 60 * 1000; // a seat silent this long is cleared
 const SEEN_EVERY_MS = 10 * 60 * 1000; // how often a seated phone says it is still here
 const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
 const ROLLOFF_MAX_MS = 5 * 60 * 1000;
-const STRAIGHT = 1000;      // a plain 1-6 run
-const COLOR_RUN = 1500;     // ...and one where the colours line up too
-const COLOR_RUN_MS = 5000;  // how long its screen holds
 const CC_DELAY_MS = 2000;   // let the roll land first
 const CC_HOLD_MS = 2000;
 const ROLL_SHOW_MS = 1000;   // look at the losing roll first
@@ -481,7 +467,6 @@ const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
 // art is picked up too - the filename alone would sit in caches.
 const PTF_ART = "ptf.webp?v=" + VERSION;
 const SPLASH_ART = "splash.webp?v=" + VERSION;
-const COLOR_RUN_ART = "colorrun.webp?v=" + VERSION;
 const SPLASH_MS = 3000;      // how long the opening art holds
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
@@ -531,7 +516,7 @@ function scoreSet(dice){
   let best = null;
   const better = v => { if(best===null || v>best) best = v; };
   if(dice.length === 6){
-    if([1,2,3,4,5,6].every(f => c[f]===1)) better(STRAIGHT);
+    if([1,2,3,4,5,6].every(f => c[f]===1)) better(1500);
     let pairs=0, clean=true;
     for(let f=1;f<=6;f++){ if(c[f]===2) pairs++; else if(c[f]!==0) clean=false; }
     if(clean && pairs===3) better(1500);
@@ -566,34 +551,6 @@ function anyScore(dice){
   return false;
 }
 
-/* The colours running in order: 1 and 2 on the red dice, 3 and 4 on the white,
-   5 and 6 on the green. It has to be a straight first - every face exactly
-   once - and then every face has to have landed on a die of its own colour.
-
-   This can't live in scoreSet, which only ever sees face values. Which die a
-   face landed on is the whole point here, so it needs the indices. */
-const COLOR_ORDER = { 1:"red", 2:"red", 3:"white", 4:"white", 5:"green", 6:"green" };
-
-function colorRun(faces, idxs){
-  if(!faces || !idxs || idxs.length !== 6) return false;
-  const seen = {};
-  for(const i of idxs){
-    const f = faces[i];
-    if(!COLOR_ORDER[f] || seen[f]) return false;   // not a straight
-    seen[f] = true;
-    if(COLORS[i] !== COLOR_ORDER[f]) return false; // right face, wrong coloured die
-  }
-  return true;
-}
-
-// Scoring a selection by which dice it is, rather than only what they show.
-// Everything except the colour run defers to scoreSet.
-function scoreIdx(faces, idxs){
-  const base = scoreSet(idxs.map(i => faces[i]));
-  if(base === null) return null;
-  return colorRun(faces, idxs) ? Math.max(base, COLOR_RUN) : base;
-}
-
 // Three pairs where both dice of each pair share a colour. Written against the
 // COLORS table rather than assuming which dice are twins, so it still holds if
 // two pairs happen to be the same colour as each other.
@@ -622,7 +579,7 @@ function bestKeep(faces, idxs){
   for(let m = 1; m < (1 << idxs.length); m++){
     const pick = [];
     for(let b = 0; b < idxs.length; b++) if(m & (1 << b)) pick.push(idxs[b]);
-    const sc = scoreIdx(faces, pick);
+    const sc = scoreSet(pick.map(i => faces[i]));
     if(sc === null) continue;
     const left = idxs.length - pick.length;
     const val = sc + (left === 0 ? 400 : 25 * left);
@@ -787,16 +744,6 @@ function playZonkWord(){
 // resting state is simply untransformed.
 // It is a few hundred KB for a screen most games never reach, so it is only
 // fetched once somebody is one zonk short of a PTF.
-// A colour run is about a 1 in 5,800 roll, so there is no warning it is coming.
-// The art is fetched once a game is actually being played, and the screen falls
-// back to words if the roll beats the download.
-let crArtLoading = false;
-function preloadColorRunArt(){
-  if(crArtLoading) return;
-  crArtLoading = true;
-  $("colorRunArt").src = COLOR_RUN_ART;
-}
-
 let ptfArtAsked = false;
 function preloadPtfArt(g){
   if(ptfArtAsked) return;
@@ -821,7 +768,6 @@ let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false
 let zonkAnimFor = null;
 let quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
 let ccTimer = null, ccHideTimer = null, ccFor = null;
-let crTimer = null, crFor = null;
 
 // A solo game lives only in this variable - it never touches the shared table,
 // so any number of people can play solo at once while a group game runs.
@@ -1303,7 +1249,7 @@ function renderGame(){
 
   const selIdx = states.map((st,i) => st==="sel" ? i : -1).filter(i => i>=0);
   const selFaces = selIdx.map(i => faces[i]);
-  const selScore = selFaces.length ? scoreIdx(faces, selIdx) : 0;
+  const selScore = selFaces.length ? scoreSet(selFaces) : 0;
   const running = g.points + (selScore || 0);
 
   const t = $("tally"), txt = running.toLocaleString();
@@ -1398,29 +1344,6 @@ function afterRender(g, myTurn){
   wasMyTurn = myTurn;
 
   if(soloGame && !g.over && g.order[g.turn] === CPU) cpuTurn();
-
-  preloadColorRunArt();
-
-  // The colours ran in order. Keyed to the stamp so it plays once for the roll
-  // that earned it, and only on a full six - once dice are kept you are no
-  // longer looking at that roll.
-  clearTimeout(crTimer);
-  if(g.rolled && !g.zonk && !g.over && crFor !== g.stamp
-     && g.states.every(st => st === "tray")
-     && colorRun(g.faces, [0,1,2,3,4,5])){
-    crFor = g.stamp;
-    const art = $("colorRunArt");
-    const useArt = art.complete && art.naturalWidth > 0;
-    art.classList.toggle("on", useArt);
-    $("colorRunWord").classList.toggle("off", useArt);
-    $("colorRunSub").classList.toggle("off", useArt);
-    // The same beat the matched-pairs screen waits, so the dice are seen to
-    // land before the screen covers them.
-    crTimer = setTimeout(() => {
-      veil("veilColorRun", true);
-      crTimer = setTimeout(() => veil("veilColorRun", false), COLOR_RUN_MS);
-    }, Math.max(0, CC_DELAY_MS - (Date.now() - g.stamp)));
-  }
 
   clearTimeout(ccTimer);
   clearTimeout(ccHideTimer);
@@ -1582,7 +1505,7 @@ function writeGame(obj, what){
 function commitSelection(g){
   const sel = [...mySel].filter(i => g.states[i] === "tray");
   if(!sel.length) return null;
-  const sc = scoreIdx(g.faces, sel);
+  const sc = scoreSet(sel.map(i => g.faces[i]));
   if(sc === null) return null;
   const states = g.states.slice();
   sel.forEach(i => states[i] = "kept");

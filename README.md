@@ -204,20 +204,12 @@ to notice the storage.
 ## Rules implemented
 
 Standard six-die chart: 1s are 100, 5s are 50, three of a kind is 100 × face
-(1000 for three 1s), a 1–6 straight is 1000, three pairs is 1500.
-
-A straight where the colours also run in order — 1 and 2 on the red dice, 3 and
-4 on the white, 5 and 6 on the green — is **colour coded** and scores 1500
-instead, with a screen of its own. It is roughly a 1 in 5,800 roll: a straight
-comes up about 1.5% of the time, and only 8 of its 720 arrangements put every
-face on a die of its own colour.
+(1000 for three 1s), four of a kind doubles it, five of a kind quadruples it, six
+of a kind is 3000, a 1–6 straight is 1500, three pairs is 1500.
 
 Keep at least one scoring die per roll. Bank at 300 in the turn, 500 for your first
 score of the game, or with four or five dice set aside. Zonk wipes the turn. All
 six dice scoring goes hot. Reaching the target triggers a final round.
-
-Only a group of three counts as a set — there's no bonus for a fourth or fifth
-matching die, so four 2s is still 200 and the odd one can't be kept.
 
 Three pairs is strict — three distinct values with exactly two each. Some tables
 count four-of-a-kind plus a pair; that's a change in `scoreSet()`.
