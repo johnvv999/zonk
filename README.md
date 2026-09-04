@@ -12,6 +12,7 @@ Free tier throughout, no payment method required.
 | `database.rules.json` | Security rules to paste into the Firebase console. |
 | `local-passphone.html` | Earlier single-device version. No Firebase, no internet. Keep or delete. |
 | `splash.webp` | The opening art, shown for three seconds on every launch. |
+| `og.jpg` | Link preview, shown when the URL is texted or posted. |
 | `colorcoded.webp` | The full-screen art for a colour coded roll. |
 | `ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
 | `.github/workflows/deploy.yml` | Builds and publishes the site, stamping `VERSION` on the way out. |
@@ -170,6 +171,22 @@ When a game ends, the winner types a victory line. That plus the final scores ge
 written to `/archive` and is readable from the **Hall of fame** button on the home
 screen. The archive survives everything; live rooms are deleted when the host taps
 **Back to start**.
+
+## Link previews
+
+Texting the URL brings up a card with `og.jpg` on it. That comes from the Open
+Graph tags in the `<head>` — iMessage, Google Messages, WhatsApp and Signal all
+read the same ones.
+
+Two things to know if you change it. `og:image` has to be an **absolute** URL;
+a relative one is silently ignored and the preview comes up blank, which is the
+usual reason these don't work. And the tags name the site's address directly, so
+if the site ever moves, they have to move with it.
+
+Previews are cached hard, by the messaging apps and by their servers. Once a
+friend's phone has drawn a card for a URL it will keep drawing that one, so
+changing `og.jpg` won't refresh what somebody has already seen. Sending
+`?x=2` on the end of the link is enough to make it fetch again.
 
 ## Versioning
 
