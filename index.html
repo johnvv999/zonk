@@ -1975,9 +1975,15 @@ async function openHall(){
     hint.style.display = "none";
   });
 
-  // iOS never fires that event, so tell them where the button is instead.
+  // iOS never fires that event, so say where the button is instead. Only a home
+  // screen app added from Safari runs standalone and can be notified - the other
+  // iOS browsers are the same WebKit underneath, but what they add is a shortcut
+  // that opens back inside them, with no turn alerts. So send those to Safari.
   const ua = navigator.userAgent;
-  if(/iPhone|iPad|iPod/i.test(ua) && !/CriOS|FxiOS|EdgiOS/i.test(ua)){
+  if(/iPhone|iPad|iPod/i.test(ua)){
+    hint.innerHTML = /CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua)
+      ? "Open this in <b>Safari</b> to add Zonk to your home screen and get turn alerts."
+      : "To keep Zonk on your home screen: tap <b>Share</b>, then <b>Add to Home Screen</b>.";
     hint.style.display = "";
   }
 })();

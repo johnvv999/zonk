@@ -110,6 +110,12 @@ Send them the URL. Each person:
    Zonk icon that opens without browser chrome. On iPhone this also matters for
    notifications — see the alerts section below.
 
+   On iPhone it has to be **Safari**. Every iOS browser is the same WebKit
+   underneath, so the game plays fine in any of them, but only a home screen app
+   added from Safari runs standalone and can be notified — what the others add is
+   a shortcut that opens back inside them. Open the link in one of those and the
+   page says so.
+
    There's no link that does this — neither platform has an install URL, so the
    offer has to come from the page. Sending the URL is all you can do; the page
    takes it from there.
