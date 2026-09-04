@@ -68,6 +68,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .lobbyhead{text-align:center}
 .lobbyhead h2{font-size:clamp(30px,9vw,42px);color:var(--brass)}
 .lobbyhead p{color:var(--muted);font-size:14px;margin:6px 0 0}
+.lobbyhead p:empty{display:none}
 .lobbyhead #lobbyCount{color:var(--brass);font-family:var(--display);font-weight:700;font-size:17px}
 .lobbyhead #rollRound{color:var(--brass);font-family:var(--display);font-weight:700;font-size:16px}
 .prow .rank{font-family:var(--display);font-weight:800;font-size:16px;color:var(--brass);
@@ -1058,9 +1059,11 @@ function renderLobby(){
     row.querySelector(".tag").textContent = id === myId ? "you" : "";
     list.append(row);
   });
+  // Nothing to say once there are enough of you: turn order comes out of the
+  // roll-off, not the order people sat down in.
   $("lobbySub").textContent = ids.length === 1
     ? "Nobody else yet - play solo, or wait for someone"
-    : "Turn order follows who sat down first";
+    : "";
   $("lobbyCount").textContent = ids.length === 1
     ? "Just you" : ids.length + " players ready";
   $("btnStart").style.display = "";
