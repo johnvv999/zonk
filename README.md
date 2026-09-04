@@ -12,6 +12,7 @@ Free tier throughout, no payment method required.
 | `database.rules.json` | Security rules to paste into the Firebase console. |
 | `local-passphone.html` | Earlier single-device version. No Firebase, no internet. Keep or delete. |
 | `splash.webp` | The opening art, shown for three seconds on every launch. |
+| `colorcoded.webp` | The full-screen art for a colour coded roll. |
 | `ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
 | `.github/workflows/deploy.yml` | Builds and publishes the site, stamping `VERSION` on the way out. |
 

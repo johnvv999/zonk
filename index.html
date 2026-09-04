@@ -238,6 +238,9 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .entry .when{color:#8A7A6D;font-size:12px;white-space:nowrap}
 .entry .q{margin:7px 0;font-size:15px;color:var(--cream);font-style:italic}
 .entry .line{color:var(--muted);font-size:13px}
+#ccArt{display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#ccArt.on{display:block}
+#veilColor h2.off,#veilColor p.off{display:none}
 /* The opening art, over everything until it is dismissed. */
 #splash{position:fixed;inset:0;z-index:80;display:none;
   align-items:center;justify-content:center;background:var(--table)}
@@ -344,8 +347,9 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 </div>
 
 <div class="veil" id="veilColor">
-  <h2><span class="cc-r">Color</span> <span class="cc-g">Coded</span></h2>
-  <p>Every pair matched its own colour.</p>
+  <h2 id="ccWord"><span class="cc-r">Color</span> <span class="cc-g">Coded</span></h2>
+  <p id="ccSub">Every pair matched its own colour.</p>
+  <img id="ccArt" alt="Color coded">
 </div>
 
 <div class="veil" id="veilRollout">
@@ -457,7 +461,7 @@ const SEEN_EVERY_MS = 10 * 60 * 1000; // how often a seated phone says it is sti
 const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
 const ROLLOFF_MAX_MS = 5 * 60 * 1000;
 const CC_DELAY_MS = 2000;   // let the roll land first
-const CC_HOLD_MS = 2000;
+const CC_HOLD_MS = 5000;   // the colour-coded screen holds
 const ROLL_SHOW_MS = 1000;   // look at the losing roll first
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
@@ -467,6 +471,7 @@ const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
 // art is picked up too - the filename alone would sit in caches.
 const PTF_ART = "ptf.webp?v=" + VERSION;
 const SPLASH_ART = "splash.webp?v=" + VERSION;
+const CC_ART = "colorcoded.webp?v=" + VERSION;
 const SPLASH_MS = 3000;      // how long the opening art holds
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
@@ -744,6 +749,14 @@ function playZonkWord(){
 // resting state is simply untransformed.
 // It is a few hundred KB for a screen most games never reach, so it is only
 // fetched once somebody is one zonk short of a PTF.
+// Pulled down once a game is under way. There is no seeing a colour coded
+// coming, and the screen falls back to words if the roll beats the download.
+function preloadCcArt(){
+  if(ccArtAsked) return;
+  ccArtAsked = true;
+  $("ccArt").src = CC_ART;
+}
+
 let ptfArtAsked = false;
 function preloadPtfArt(g){
   if(ptfArtAsked) return;
@@ -767,7 +780,7 @@ let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
 let zonkAnimFor = null;
 let quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
-let ccTimer = null, ccHideTimer = null, ccFor = null;
+let ccTimer = null, ccHideTimer = null, ccFor = null, ccSetFor = null, ccArtAsked = false;
 
 // A solo game lives only in this variable - it never touches the shared table,
 // so any number of people can play solo at once while a group game runs.
@@ -1244,6 +1257,16 @@ function renderGame(){
     : (iPlay ? "" : "/ watching");
 
   const faces = g.faces, states = g.states.slice();
+  // A colour coded sets itself aside: all six drop below the line without the
+  // player tapping them. Index order is colour order - dice 0,1 are red, 2,3
+  // white, 4,5 green - and a colour coded can only pair faces inside one of
+  // those, so they land in their colour pairs by construction.
+  if(myTurn && g.rolled && !g.zonk && !g.over && ccSetFor !== g.stamp
+     && colorCoded(g.faces, g.states)){
+    ccSetFor = g.stamp;
+    mySel = new Set([0,1,2,3,4,5]);
+    rolloutFor = g.stamp;      // this screen stands in for the rollout one
+  }
   if(myTurn && g.rolled && !g.zonk)
     mySel.forEach(i => { if(states[i]==="tray") states[i] = "sel"; });
 
@@ -1352,6 +1375,11 @@ function afterRender(g, myTurn){
     ccFor = g.stamp;
     const since = Date.now() - g.stamp;
     ccTimer = setTimeout(() => {
+      const art = $("ccArt");
+      const useArt = art.complete && art.naturalWidth > 0;
+      art.classList.toggle("on", useArt);
+      $("ccWord").classList.toggle("off", useArt);
+      $("ccSub").classList.toggle("off", useArt);
       veil("veilColor", true);
       try{ if(navigator.vibrate) navigator.vibrate([50,50,50,50,50]); }catch(e){}
       ccHideTimer = setTimeout(() => veil("veilColor", false), CC_HOLD_MS);
@@ -1359,6 +1387,7 @@ function afterRender(g, myTurn){
   }
 
   preloadPtfArt(g);
+  preloadCcArt();
 
   clearTimeout(zonkTimer);
   clearTimeout(zonkShowTimer);
