@@ -52,7 +52,10 @@ jobs:
             exit 1
           }
           sed -i "s/const VERSION = \"[^\"]*\";/const VERSION = \"${stamp}\";/" _site/index.html
-          grep -n 'const VERSION' _site/index.html
+          # the service worker names its cache after the same stamp, so each
+          # build gets its own and the previous one is dropped
+          sed -i "s/const VERSION = \"[^\"]*\";/const VERSION = \"${stamp}\";/" _site/sw.js
+          grep -n 'const VERSION' _site/index.html _site/sw.js
           echo "Stamped VERSION as ${stamp}"
 
       - uses: actions/configure-pages@v5

@@ -265,11 +265,12 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .entry .when{color:#8A7A6D;font-size:12px;white-space:nowrap}
 .entry .q{margin:7px 0;font-size:15px;color:var(--cream);font-style:italic}
 .entry .line{color:var(--muted);font-size:13px}
-#ccArt,#rolloutArt{display:none;position:absolute;inset:0;
+#ccArt,#rolloutArt,#cosmosArt{display:none;position:absolute;inset:0;
   width:100%;height:100%;object-fit:cover}
-#ccArt.on,#rolloutArt.on{display:block}
+#ccArt.on,#rolloutArt.on,#cosmosArt.on{display:block}
 #veilColor h2.off,#veilColor p.off,
-#veilRollout h2.off,#veilRollout p.off{display:none}
+#veilRollout h2.off,#veilRollout p.off,
+#veilCosmos h2.off{display:none}
 /* The opening art, over everything until it is dismissed. */
 #splash{position:fixed;inset:0;z-index:80;display:none;
   align-items:center;justify-content:center;background:var(--table)}
@@ -392,6 +393,11 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <h2 id="ccWord"><span class="cc-r">Color</span> <span class="cc-g">Coded</span></h2>
   <p id="ccSub">Every pair matched its own colour.</p>
   <img id="ccArt" alt="Color coded">
+</div>
+
+<div class="veil" id="veilCosmos">
+  <h2 id="cosmosWord">Enter Cosmos</h2>
+  <img id="cosmosArt" alt="Enter Cosmos">
 </div>
 
 <div class="veil" id="veilRollout">
@@ -519,6 +525,8 @@ const PTF_ART = "ptf.webp?v=" + VERSION;
 const SPLASH_ART = "splash.webp?v=" + VERSION;
 const CC_ART = "colorcoded.webp?v=" + VERSION;
 const ROLLOUT_ART = "rollout.webp?v=" + VERSION;
+const COSMOS_ART = "cosmos.webp?v=" + VERSION;
+const COSMOS_HOLD_MS = 5000; // getting on the board is once a game
 const ROLLOUT_HOLD_MS = 3000; // how long the roll-out screen holds
 const SPLASH_MS = 3000;      // how long the opening art holds
 const ABANDON_MS = 300000;
@@ -832,6 +840,29 @@ function preloadCcArt(){
   $("rolloutArt").src = ROLLOUT_ART;   // a roll-out is common; fetch it alongside
 }
 
+/* Getting on the board. Detected by comparing the entered map against the last
+   one seen rather than by writing a flag into the game: nothing new goes into
+   the shared state, and a phone joining midway simply records where everyone
+   already is and celebrates nothing retrospectively. */
+function showCosmos(){
+  const art = $("cosmosArt");
+  if(!cosmosArtAsked){ cosmosArtAsked = true; art.src = COSMOS_ART; }
+  const reveal = ready => {
+    art.classList.toggle("on", ready);
+    $("cosmosWord").classList.toggle("off", ready);
+    veil("veilCosmos", true);
+    try{ if(navigator.vibrate) navigator.vibrate([40,60,40,60,140]); }catch(e){}
+    clearTimeout(cosmosTimer);
+    cosmosTimer = setTimeout(() => veil("veilCosmos", false), COSMOS_HOLD_MS);
+  };
+  if(art.complete && art.naturalWidth > 0) return reveal(true);
+  let settled = false;
+  const go = ready => { if(settled) return; settled = true; reveal(ready); };
+  art.addEventListener("load",  () => go(true),  { once: true });
+  art.addEventListener("error", () => go(false), { once: true });
+  setTimeout(() => go(art.complete && art.naturalWidth > 0), CC_ART_WAIT_MS);
+}
+
 /* The roll-out screen is the picture, the same way the colour-coded one is: it
    waits on the download rather than putting words up in its place, and only
    falls back to those if it fails or takes longer than anyone would sit
@@ -890,6 +921,9 @@ const G = () => soloGame || (table && table.game) || null;
 const CPU = "computer";
 let cpuBusy = false;
 let rolloutTimer = null, rolloutFor = null;
+// Who was already on the board last time we looked, so getting there shows once.
+let cosmosTimer = null, cosmosFor = null, cosmosArtAsked = false;
+let enteredKnown = null, enteredGame = null;
 
 const playersRef = () => ref(db, "table/players");
 const gameRef    = () => ref(db, "table/game");
@@ -1491,6 +1525,23 @@ function afterRender(g, myTurn){
   preloadPtfArt(g);
   preloadCcArt();
 
+  // Somebody has just got on the board. Once per game per player, and never on
+  // top of another screen.
+  if(!g.over){
+    if(enteredGame !== g.started){ enteredGame = g.started; enteredKnown = null; }
+    const nowIn = g.entered || {};
+    if(enteredKnown){
+      const fresh = g.order.filter(p => nowIn[p] && !enteredKnown[p]);
+      const busy = ["veilZonk","veilColor","veilRollout","veilWin","veilNope","veilWaiting"]
+        .some(id => $(id).classList.contains("on"));
+      if(fresh.length && cosmosFor !== g.stamp && !busy){
+        cosmosFor = g.stamp;
+        showCosmos();
+      }
+    }
+    enteredKnown = Object.assign({}, nowIn);
+  }
+
   /* Somebody has sat down at the shared table while this solo game is running.
      startSolo stepped away from that table, so they are sitting there with
      nobody to play against, and only this player can decide whether to go back.
@@ -2031,6 +2082,14 @@ async function openHall(){
     skip.style.display = "";
   }
 })();
+
+/* Keeps the artwork on the device between visits. Narrow on purpose - it caches
+   the images only, never the page, so the VERSION check still governs updates. */
+if("serviceWorker" in navigator){
+  addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
 
 $("btnSit").onclick = sitDown;
 $("btnStart").onclick = startGame;

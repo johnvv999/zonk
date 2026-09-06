@@ -16,6 +16,8 @@ Free tier throughout, no payment method required.
 | `og.jpg` | Link preview, shown when the URL is texted or posted. |
 | `colorcoded.webp` | The full-screen art for a colour coded roll. |
 | `rollout.webp` | The full-screen art for a roll-out - all six dice scoring. |
+| `cosmos.webp` | The full-screen art for getting on the board. |
+| `sw.js` | Keeps the artwork on the device between visits. |
 | `ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
 | `.github/workflows/deploy.yml` | Builds and publishes the site, stamping `VERSION` on the way out. |
 
