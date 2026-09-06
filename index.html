@@ -1603,7 +1603,7 @@ function drawActions(g, myTurn, selFaces, selScore, running){
 
   if(!g.rolled){
     roll.textContent = "Roll";
-    bank.textContent = entered ? "Done" : "Need 500";
+    bank.textContent = "Done";
     bank.onclick = () => nope("Roll the dice first.");
     return;
   }
@@ -1621,13 +1621,9 @@ function drawActions(g, myTurn, selFaces, selScore, running){
 
   roll.disabled = !valid;
   roll.textContent = "Roll";
-  // Say which gate is shut, rather than "Done" over a button that will refuse.
-  bank.textContent =
-      canBank                                    ? (entered ? "Done" : "Enter Cosmos")
-    : !valid || hotDice                          ? (entered ? "Done" : "Need 500")
-    : !enoughDice                                ? "Need " + BANK_MIN_DICE + " dice"
-    : running < need                             ? "Need " + need
-    :                                              (entered ? "Done" : "Enter Cosmos");
+  // Just "Done". Whichever gate is shut is spelled out on the Wanna stop screen,
+  // so the button does not need to carry it too.
+  bank.textContent = "Done";
   bank.onclick = () => {
     if(canBank) return doBank();
     if(!selFaces.length)      nope("You haven't set any dice aside.");
