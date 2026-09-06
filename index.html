@@ -265,9 +265,11 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .entry .when{color:#8A7A6D;font-size:12px;white-space:nowrap}
 .entry .q{margin:7px 0;font-size:15px;color:var(--cream);font-style:italic}
 .entry .line{color:var(--muted);font-size:13px}
-#ccArt{display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-#ccArt.on{display:block}
-#veilColor h2.off,#veilColor p.off{display:none}
+#ccArt,#rolloutArt{display:none;position:absolute;inset:0;
+  width:100%;height:100%;object-fit:cover}
+#ccArt.on,#rolloutArt.on{display:block}
+#veilColor h2.off,#veilColor p.off,
+#veilRollout h2.off,#veilRollout p.off{display:none}
 /* The opening art, over everything until it is dismissed. */
 #splash{position:fixed;inset:0;z-index:80;display:none;
   align-items:center;justify-content:center;background:var(--table)}
@@ -393,8 +395,9 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 </div>
 
 <div class="veil" id="veilRollout">
-  <h2 class="rollout-word">Rollout!</h2>
-  <p>All six scored. Pick them up and roll again.</p>
+  <h2 class="rollout-word" id="rolloutWord">Rollout!</h2>
+  <p id="rolloutSub">All six scored. Pick them up and roll again.</p>
+  <img id="rolloutArt" alt="Epic roll out">
 </div>
 
 <div class="veil" id="veilNope">
@@ -504,7 +507,7 @@ const ROLLOFF_MAX_MS = 5 * 60 * 1000;
 const CC_DELAY_MS = 3000;   // read the roll that did it before the screen
 const CC_HOLD_MS = 8000;   // the colour-coded screen holds
 const CC_ART_WAIT_MS = 3000; // how long to wait on the picture before using words
-const ROLL_SHOW_MS = 4000;   // long enough to read the losing dice
+const ROLL_SHOW_MS = 2000;   // long enough to read the losing dice
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
 const BANK_MIN_DICE = 4;     // dice set aside before a turn may be ended
@@ -515,6 +518,8 @@ const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
 const PTF_ART = "ptf.webp?v=" + VERSION;
 const SPLASH_ART = "splash.webp?v=" + VERSION;
 const CC_ART = "colorcoded.webp?v=" + VERSION;
+const ROLLOUT_ART = "rollout.webp?v=" + VERSION;
+const ROLLOUT_HOLD_MS = 3000; // how long the roll-out screen holds
 const SPLASH_MS = 3000;      // how long the opening art holds
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
@@ -824,6 +829,31 @@ function preloadCcArt(){
   if(ccArtAsked) return;
   ccArtAsked = true;
   $("ccArt").src = CC_ART;
+  $("rolloutArt").src = ROLLOUT_ART;   // a roll-out is common; fetch it alongside
+}
+
+/* The roll-out screen is the picture, the same way the colour-coded one is: it
+   waits on the download rather than putting words up in its place, and only
+   falls back to those if it fails or takes longer than anyone would sit
+   through. */
+function showRollout(){
+  const art = $("rolloutArt");
+  const reveal = ready => {
+    art.classList.toggle("on", ready);
+    $("rolloutWord").classList.toggle("off", ready);
+    $("rolloutSub").classList.toggle("off", ready);
+    veil("veilRollout", true);
+    try{ if(navigator.vibrate) navigator.vibrate([60,40,60,40,120]); }catch(e){}
+    clearTimeout(rolloutTimer);
+    rolloutTimer = setTimeout(() => veil("veilRollout", false), ROLLOUT_HOLD_MS);
+  };
+  if(art.complete && art.naturalWidth > 0) return reveal(true);
+  preloadCcArt();
+  let settled = false;
+  const go = ready => { if(settled) return; settled = true; reveal(ready); };
+  art.addEventListener("load",  () => go(true),  { once: true });
+  art.addEventListener("error", () => go(false), { once: true });
+  setTimeout(() => go(art.complete && art.naturalWidth > 0), CC_ART_WAIT_MS);
 }
 
 let ptfArtAsked = false;
@@ -1421,10 +1451,7 @@ function renderGame(){
   if(canTap && selScore !== null && (pendIdx.length + keptIdx.length) === 6
      && rolloutFor !== g.stamp){
     rolloutFor = g.stamp;
-    veil("veilRollout", true);
-    clearTimeout(rolloutTimer);
-    try{ if(navigator.vibrate) navigator.vibrate([60,40,60,40,120]); }catch(e){}
-    rolloutTimer = setTimeout(() => veil("veilRollout", false), 3000);
+    showRollout();
   }
 
   drawActions(g, myTurn, selFaces, selScore, running);

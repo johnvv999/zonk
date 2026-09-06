@@ -15,6 +15,7 @@ Free tier throughout, no payment method required.
 | `manifest.json`, `icon-*.png`, `apple-touch-icon.png` | Home screen install: name, icon and standalone launch. |
 | `og.jpg` | Link preview, shown when the URL is texted or posted. |
 | `colorcoded.webp` | The full-screen art for a colour coded roll. |
+| `rollout.webp` | The full-screen art for a roll-out - all six dice scoring. |
 | `ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
 | `.github/workflows/deploy.yml` | Builds and publishes the site, stamping `VERSION` on the way out. |
 
