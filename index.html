@@ -480,7 +480,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <h3>Your turn</h3>
     <ul>
       <li>Every roll, keep at least one scoring die.</li>
-      <li>With all six live you can pull them down in any order. A 1 or a 5 drops below the line on its own; anything else waits above it in a gold band until the set it belongs to is complete. A die nothing can use shakes and stays where it is.</li>
+      <li>Set them aside in any order. A 1 or a 5 drops below the line on its own; anything else waits above it in a gold band until the set it belongs to is complete, then the whole set drops together. A die nothing can use shakes and stays where it is.</li>
       <li>To stop, you need four dice set aside. Under four and you have to roll on.</li>
       <li>Nothing counts until you are on the board, and that takes 500 in a single turn. Getting there is Enter Cosmos.</li>
       <li>After that you need points in the turn, and how many climbs with your banked score - 50 more for every 2,500. Crossing one of those steps is a Score-B.</li>
@@ -1574,16 +1574,8 @@ function renderGame(){
   // three go down together. A pick that scores as a whole (straight, three
   // pairs) drops entire.
   const down = [], up = [];
-  const openRoll = keptIdx.length === 0;      // all six still in play
-  const allPicked = pendIdx.length === 6;
-  if(pendIdx.length && selScore !== null && (!openRoll || allPicked)){
+  if(pendIdx.length && selScore !== null){
     down.push(...pendIdx);
-  } else if(openRoll){
-    // Working towards a roll-out. A 1 or a 5 stands on its own so it drops.
-    // Anything else only counts as part of something, so it waits above the
-    // line in its gold band until all six are down and the pick is judged
-    // whole - then the lot goes below together.
-    pendIdx.forEach(i => ((faces[i] === 1 || faces[i] === 5) ? down : up).push(i));
   } else {
     const c = [0,0,0,0,0,0,0];
     pendIdx.forEach(i => c[faces[i]]++);

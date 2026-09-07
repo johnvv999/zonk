@@ -299,9 +299,9 @@ triggers a final round.
 The dice come down in any order. A die may join a pick whenever that pick can
 still be finished into something that scores, so one of a triple or the 2 opening
 a straight is fine — the rest can follow. A die no finish can use is refused: it
-shakes, buzzes, and takes no band. While all six are live a 1 or a 5 drops below
-the line on its own and anything else waits above it in a gold band until the set
-it belongs to is complete.
+shakes, buzzes, and takes no band. A 1 or a 5 drops below the line on its own;
+anything else waits above it in a gold band until the set it belongs to is
+complete, and then the whole set drops together.
 
 All six set aside goes hot — no banking on six for six, and rather than waiting
 on a Roll press the turn throws them again by itself, after the roll-out or
