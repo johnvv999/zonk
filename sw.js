@@ -11,6 +11,7 @@ const VERSION = "dev";
 const CACHE = "zonk-" + VERSION;
 const ASSETS = [
   "splash.webp", "ptf.webp", "colorcoded.webp", "rollout.webp", "cosmos.webp",
+  "scoreb.webp",
   "og.jpg", "icon-192.png", "icon-512.png", "apple-touch-icon.png"
 ];
 

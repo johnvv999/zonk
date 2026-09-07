@@ -17,6 +17,7 @@ Free tier throughout, no payment method required.
 | `colorcoded.webp` | The full-screen art for a colour coded roll. |
 | `rollout.webp` | The full-screen art for a roll-out - all six dice scoring. |
 | `cosmos.webp` | The full-screen art for getting on the board. |
+| `scoreb.webp` | The full-screen art for a Score-B. |
 | `sw.js` | Keeps the artwork on the device between visits. |
 | `ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
 | `.github/workflows/deploy.yml` | Builds and publishes the site, stamping `VERSION` on the way out. |
@@ -256,8 +257,10 @@ of a kind is 3000, a 1–6 straight is 1500, three pairs is 1500.
 Keep at least one scoring die per roll. Zonk wipes the turn. All six dice scoring
 goes hot. Reaching the target triggers a final round.
 
-Stopping has two gates, and both must be open. The points: 300 in the turn, or
-500 for your first score of the game. And the dice: **four set aside**. A big
+Stopping has two gates, and both must be open. The points: **400 in the turn**,
+and another 50 for every 2,500 you have banked — 450 once you pass 2,500, 500
+past 5,000, and so on. Crossing one of those is a **Score-B**, and it gets a
+screen of its own. And the dice: **four set aside**. A big
 score doesn't buy you out of the second one — three 1s is 1000 and still only
 three dice, so you roll on. What counts is everything kept in the current run of
 six plus whatever is going down now; hot dice bring all six back, so the count

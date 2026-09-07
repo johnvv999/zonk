@@ -265,12 +265,16 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .entry .when{color:#8A7A6D;font-size:12px;white-space:nowrap}
 .entry .q{margin:7px 0;font-size:15px;color:var(--cream);font-style:italic}
 .entry .line{color:var(--muted);font-size:13px}
-#ccArt,#rolloutArt,#cosmosArt{display:none;position:absolute;inset:0;
+#ccArt,#rolloutArt,#cosmosArt,#scoreBArt{display:none;position:absolute;inset:0;
   width:100%;height:100%;object-fit:cover}
-#ccArt.on,#rolloutArt.on,#cosmosArt.on{display:block}
+#ccArt.on,#rolloutArt.on,#cosmosArt.on,#scoreBArt.on{display:block}
+/* SCORE B! starts about 2% from the left edge, closer in than any centred crop
+   can spare, so this one is anchored left rather than centred. What goes
+   instead is wall on the right. */
+#scoreBArt{object-position:left center}
 #veilColor h2.off,#veilColor p.off,
 #veilRollout h2.off,#veilRollout p.off,
-#veilCosmos h2.off{display:none}
+#veilCosmos h2.off,#veilScoreB h2.off{display:none}
 /* The opening art, over everything until it is dismissed. */
 #splash{position:fixed;inset:0;z-index:80;display:none;
   align-items:center;justify-content:center;background:var(--table)}
@@ -395,6 +399,11 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <img id="ccArt" alt="Color coded">
 </div>
 
+<div class="veil" id="veilScoreB">
+  <h2 id="scoreBWord">Score B!</h2>
+  <img id="scoreBArt" alt="Score B">
+</div>
+
 <div class="veil" id="veilCosmos">
   <h2 id="cosmosWord">Enter Cosmos</h2>
   <img id="cosmosArt" alt="Enter Cosmos">
@@ -449,7 +458,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <ul>
       <li>Every roll, keep at least one scoring die. Dice that don't score can't be kept.</li>
       <li>To stop, you need four dice set aside as well as the points. Under four and you have to roll on.</li>
-      <li>Bank once you have 300 in the turn, or 500 if you haven't scored yet this game.</li>
+      <li>To stop you need 400 in the turn - and 50 more for every 2,500 you have banked. Crossing one of those is a Score-B.</li>
       <li>A roll with nothing scoring is a zonk: turn over, turn points gone.</li>
       <li>All six dice set aside is hot dice - they come back and you have to roll again. No banking on six for six.</li>
     </ul>
@@ -517,6 +526,15 @@ const ROLL_SHOW_MS = 2000;   // long enough to read the losing dice
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
 const BANK_MIN_DICE = 4;     // dice set aside before a turn may be ended
+/* What it takes to stop climbs as you do: 400 to begin with, and another 50
+   every 2500 you have banked. Each of those steps is a Score-B. This replaced
+   the old flat 300, and the separate 500 to get on the board with it. */
+const BANK_BASE = 400;
+const BANK_STEP = 50;
+const SCORE_B_EVERY = 2500;
+const SCORE_B_HOLD_MS = 5000;
+const bankMin   = score => BANK_BASE + BANK_STEP * Math.floor((score || 0) / SCORE_B_EVERY);
+const scoreTier = score => Math.floor((score || 0) / SCORE_B_EVERY);
 const ZONK_WORD_MS = 900;    // the word's spin-and-swell entrance
 const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
 // Shown instead of the word on a PTF. Tagged with VERSION so a redraw of the
@@ -526,6 +544,7 @@ const SPLASH_ART = "splash.webp?v=" + VERSION;
 const CC_ART = "colorcoded.webp?v=" + VERSION;
 const ROLLOUT_ART = "rollout.webp?v=" + VERSION;
 const COSMOS_ART = "cosmos.webp?v=" + VERSION;
+const SCORE_B_ART = "scoreb.webp?v=" + VERSION;
 const COSMOS_HOLD_MS = 5000; // getting on the board is once a game
 const ROLLOUT_HOLD_MS = 3000; // how long the roll-out screen holds
 const SPLASH_MS = 3000;      // how long the opening art holds
@@ -681,7 +700,7 @@ const CPU_CAP = { 1: 350, 2: 450, 3: 700, 4: 1200, 5: 2000 };
 function cpuShouldRoll(g, best, total){
   if(best.left === 0) return true;                       // hot dice, free reroll
   if(6 - best.left < BANK_MIN_DICE) return true;         // not enough set aside to stop
-  if(total < (g.entered[CPU] ? 300 : 500)) return true;  // can't stop anyway
+  if(total < bankMin(g.scores[CPU])) return true;         // can't stop anyway
   const human = g.order.find(p => p !== CPU);
   const behind = (g.scores[human] || 0) - (g.scores[CPU] || 0);
   const chase = behind > 2500 ? 250 : 0;                 // press harder when losing
@@ -840,6 +859,28 @@ function preloadCcArt(){
   $("rolloutArt").src = ROLLOUT_ART;   // a roll-out is common; fetch it alongside
 }
 
+/* A Score-B: somebody's banked score has crossed another 2,500, which puts the
+   bar to stop up another 50 for them. Spotted the same way as getting on the
+   board, by watching the numbers rather than writing a flag into the game. */
+function showScoreB(){
+  const art = $("scoreBArt");
+  if(!scoreBArtAsked){ scoreBArtAsked = true; art.src = SCORE_B_ART; }
+  const reveal = ready => {
+    art.classList.toggle("on", ready);
+    $("scoreBWord").classList.toggle("off", ready);
+    veil("veilScoreB", true);
+    try{ if(navigator.vibrate) navigator.vibrate([60,50,60,50,160]); }catch(e){}
+    clearTimeout(scoreBTimer);
+    scoreBTimer = setTimeout(() => veil("veilScoreB", false), SCORE_B_HOLD_MS);
+  };
+  if(art.complete && art.naturalWidth > 0) return reveal(true);
+  let settled = false;
+  const go = ready => { if(settled) return; settled = true; reveal(ready); };
+  art.addEventListener("load",  () => go(true),  { once: true });
+  art.addEventListener("error", () => go(false), { once: true });
+  setTimeout(() => go(art.complete && art.naturalWidth > 0), CC_ART_WAIT_MS);
+}
+
 /* Getting on the board. Detected by comparing the entered map against the last
    one seen rather than by writing a flag into the game: nothing new goes into
    the shared state, and a phone joining midway simply records where everyone
@@ -924,6 +965,7 @@ let rolloutTimer = null, rolloutFor = null;
 // Who was already on the board last time we looked, so getting there shows once.
 let cosmosTimer = null, cosmosFor = null, cosmosArtAsked = false;
 let enteredKnown = null, enteredGame = null;
+let scoreBTimer = null, scoreBFor = null, scoreBArtAsked = false, tierKnown = null;
 
 const playersRef = () => ref(db, "table/players");
 const gameRef    = () => ref(db, "table/game");
@@ -1528,18 +1570,27 @@ function afterRender(g, myTurn){
   // Somebody has just got on the board. Once per game per player, and never on
   // top of another screen.
   if(!g.over){
-    if(enteredGame !== g.started){ enteredGame = g.started; enteredKnown = null; }
+    if(enteredGame !== g.started){
+      enteredGame = g.started; enteredKnown = null; tierKnown = null;
+    }
     const nowIn = g.entered || {};
-    if(enteredKnown){
-      const fresh = g.order.filter(p => nowIn[p] && !enteredKnown[p]);
-      const busy = ["veilZonk","veilColor","veilRollout","veilWin","veilNope","veilWaiting"]
-        .some(id => $(id).classList.contains("on"));
-      if(fresh.length && cosmosFor !== g.stamp && !busy){
-        cosmosFor = g.stamp;
-        showCosmos();
-      }
+    const tiers = {}; g.order.forEach(p => tiers[p] = scoreTier(g.scores[p]));
+    const busy = ["veilZonk","veilColor","veilRollout","veilWin","veilNope","veilWaiting"]
+      .some(id => $(id).classList.contains("on"));
+
+    // Getting on the board comes first: a single bank can do both, and two
+    // full-screen celebrations at once would just tread on each other.
+    let shown = false;
+    if(enteredKnown && g.order.some(p => nowIn[p] && !enteredKnown[p])
+       && cosmosFor !== g.stamp && !busy){
+      cosmosFor = g.stamp; showCosmos(); shown = true;
+    }
+    if(!shown && tierKnown && g.order.some(p => tiers[p] > (tierKnown[p] || 0))
+       && scoreBFor !== g.stamp && !busy){
+      scoreBFor = g.stamp; showScoreB();
     }
     enteredKnown = Object.assign({}, nowIn);
+    tierKnown = tiers;
   }
 
   /* Somebody has sat down at the shared table while this solo game is running.
@@ -1662,11 +1713,11 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   const valid = selFaces.length > 0 && selScore !== null;
   const left = g.live - selFaces.length;
   const hotDice = valid && left === 0;
-  // Two gates on ending a turn. The score: 500 to enter the game, 300 after
-  // that. And the count: four dice set aside. Everything kept this run plus
+  // Two gates on ending a turn. The score, which climbs with what you have
+  // banked. And the count: four dice set aside - everything kept this run plus
   // whatever is going down now, which is the same as six minus what is left.
   const setAside = 6 - left;
-  const need = entered ? 300 : 500;
+  const need = bankMin(g.scores[g.order[g.turn]]);
   const enoughDice = setAside >= BANK_MIN_DICE;
   const canBank = valid && !hotDice && enoughDice && running >= need;
 
