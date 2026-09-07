@@ -207,6 +207,14 @@ and older entries without one are filtered out on the way to the screen. Skippin
 the line still counts the game — the win/played record is written separately, by
 the winner, the moment the game ends.
 
+## The record
+
+`/stats` is one row per name, counting games won and games played across every
+game ever finished. The win screen shows the whole of it, not just the people at
+this table, ordered by wins — level on wins, the fewer games played is the better
+record. Names are keyed by `nameKey()`, so the record follows the name rather
+than the phone, and solo games are left out of it entirely.
+
 ## Link previews
 
 Texting the URL brings up a card with `og.jpg` on it. That comes from the Open
@@ -286,6 +294,7 @@ count four-of-a-kind plus a pair; that's a change in `scoreSet()`.
 - `saveToHall(g)` — the one write to `/archive`, and only when there is a quote.
 - `recordResult(g)` / `bumpStats(g)` — the win/played record, written by the
   winner when the game ends rather than when the victory line is typed.
+- `showStats(g)` — the whole of `/stats` on the win screen, most wins first.
 - `COLORS` — 2 red, 2 white, 2 green. Cosmetic only.
 
 Only the active player's phone writes game state; everyone else listens. That's

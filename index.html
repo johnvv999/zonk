@@ -237,13 +237,20 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .cc-r{color:var(--dice-red)}
 .cc-g{color:var(--dice-green)}
 .win-word{color:var(--brass)}
-.finaltable{display:flex;flex-direction:column;gap:5px;width:100%;max-width:340px}
+.finaltable{display:flex;flex-direction:column;gap:5px;width:100%;max-width:340px;flex:none}
 .finalrow{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;
   background:var(--felt);border-radius:8px;font-size:15px}
 .finalrow.top{background:#4A3A2A;color:var(--brass);font-weight:700}
 .stats-head{font-family:var(--display);font-weight:700;font-size:14px;color:var(--muted);
   letter-spacing:.04em;text-transform:uppercase;margin-top:6px}
 .finalrow span:last-child{font-variant-numeric:tabular-nums}
+/* Everyone who has ever played is on this one, so it gets a window of its own
+   to scroll inside rather than running the length of the record. And the win
+   screen can now outgrow the phone, so it scrolls too: "safe center" holds it
+   centred while it fits and falls back to the top when it doesn't, which plain
+   centring cannot - that clips the top off and takes the winner with it. */
+#statsTable{max-height:min(34vh,240px);overflow-y:auto}
+#veilWin{overflow-y:auto;justify-content:center;justify-content:safe center}
 .quotebox{font-family:var(--display);font-weight:700;font-size:19px;color:var(--cream);
   max-width:34ch;line-height:1.3;-webkit-user-select:text;user-select:text}
 
@@ -435,7 +442,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <h2 class="win-word" id="winName">-</h2>
   <div class="quotebox" id="winQuote"></div>
   <div class="finaltable" id="finalTable"></div>
-  <div class="stats-head" id="statsHead" style="display:none">Games won / played</div>
+  <div class="stats-head" id="statsHead" style="display:none">Every game - won / played</div>
   <div class="finaltable" id="statsTable"></div>
   <input type="text" id="quoteInput" maxlength="140" placeholder="Say something for the record">
   <button class="big-btn" id="btnQuote">Post it</button>
@@ -2053,15 +2060,28 @@ async function showStats(g){
   if(soloGame || !g.order || g.order.length < 2){
     head.style.display = "none"; box.innerHTML = ""; return;
   }
+  // The whole record, not just this table: every name that has ever finished a
+  // game, most wins first. One read of the node rather than one per player.
   const rows = [];
-  for(const pid of g.order){
+  try{
+    const snap = await get(ref(db, "stats"));
+    if(snap.exists()){
+      const all = snap.val();
+      Object.keys(all).forEach(k => { if(all[k] && all[k].name) rows.push(all[k]); });
+    }
+  }catch(e){}
+  // Anyone at this table with nothing on the board yet still belongs on the
+  // list. Reading 0 / 0 beside your name beats not being on it at all.
+  g.order.forEach(pid => {
     const nm = g.names[pid] || "";
-    try{
-      const snap = await get(ref(db, "stats/" + nameKey(nm)));
-      rows.push(snap.exists() ? snap.val() : { name: nm, played: 0, won: 0 });
-    }catch(e){ rows.push({ name: nm, played: 0, won: 0 }); }
-  }
-  rows.sort((a,b) => (a.name || "").localeCompare(b.name || "", undefined, {sensitivity:"base"}));
+    if(nm && !rows.some(r => nameKey(r.name) === nameKey(nm)))
+      rows.push({ name: nm, played: 0, won: 0 });
+  });
+  // Wins first. Level on wins, fewer games played is the better record, and
+  // level on both it is alphabetical so the order never wanders.
+  rows.sort((a,b) => (b.won || 0) - (a.won || 0)
+                  || (a.played || 0) - (b.played || 0)
+                  || (a.name || "").localeCompare(b.name || "", undefined, {sensitivity:"base"}));
   box.innerHTML = "";
   rows.forEach(r => {
     const el = document.createElement("div");
