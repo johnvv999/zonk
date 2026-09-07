@@ -38,6 +38,20 @@
         }
       }
     },
+    "plays": {
+      "$name": {
+        ".write": true,
+        "name": {
+          ".validate": "newData.isString() && newData.val().length <= 14"
+        },
+        "games": {
+          ".validate": "newData.isNumber() && (!data.exists() ? newData.val() === 1 : newData.val() === data.val() + 1)"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
     "stats": {
       ".read": true,
       "$name": {

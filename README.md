@@ -210,10 +210,25 @@ the winner, the moment the game ends.
 ## The record
 
 `/stats` is one row per name, counting games won and games played across every
-game ever finished. The win screen shows the whole of it, not just the people at
+game ever finished at a shared table. The win screen shows the whole of it, not just the people at
 this table, ordered by wins — level on wins, the fewer games played is the better
 record. Names are keyed by `nameKey()`, so the record follows the name rather
 than the phone, and solo games are left out of it entirely.
+
+`/plays` is the other half: one row per name counting **every** game that name
+has finished, solo ones included. Nothing in the app reads it back — the rules
+grant no `.read`, so it falls through to the root's `".read": false` and is
+visible only from the Firebase console. That is deliberate, and it is why the
+count is raised with `increment(1)` rather than read, added to and written: a
+node the app cannot read is a node it cannot tally by hand. The `games`
+validation only accepts the value going up by exactly one, so the count cannot be
+inflated from outside. There is no link to it in the app; there would be nothing
+behind it.
+
+One device writes both records per game — the winner at a shared table, or the
+lone phone in a solo game — and `zonk.counted` in local storage remembers which
+game that was, so reloading with the win screen still up cannot count it twice.
+A solo player who never entered a name is skipped rather than filed under "You".
 
 ## Link previews
 
@@ -295,6 +310,7 @@ count four-of-a-kind plus a pair; that's a change in `scoreSet()`.
 - `recordResult(g)` / `bumpStats(g)` — the win/played record, written by the
   winner when the game ends rather than when the victory line is typed.
 - `showStats(g)` — the whole of `/stats` on the win screen, most wins first.
+- `recordPlays(g)` — the private `/plays` total, console-only, solo included.
 - `COLORS` — 2 red, 2 white, 2 green. Cosmetic only.
 
 Only the active player's phone writes game state; everyone else listens. That's

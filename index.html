@@ -500,7 +500,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, update, remove, onValue, push,
-         onDisconnect, query, orderByChild, limitToLast }
+         onDisconnect, query, orderByChild, limitToLast, increment }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 
@@ -968,7 +968,8 @@ let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
 let zonkAnimFor = null;
 let quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
-let statsFor = null, statsReread = null;  // the game whose result went in
+let statsReread = null;                   // the game whose record was re-read
+const COUNTED = "zonk.counted";           // the last game this device counted
 // Newcomers this player has already said no to, so they are asked once each.
 let waitDeclined = new Set();
 let ccTimer = null, ccHideTimer = null, ccFor = null, ccSetFor = null, ccArtAsked = false;
@@ -1039,7 +1040,7 @@ function leaveTable(){
   store.del("zonk.seated");
   veil("veilWin", false); veil("veilZonk", false);
   wasMyTurn = false; archived = false; joiningNext = false; soloGame = null;
-  statsFor = null; statsReread = null;
+  statsReread = null;
   dropSolo();
   cpuBusy = false; mySel.clear();
   show("home");
@@ -2018,22 +2019,50 @@ async function postQuote(text){
 // the winner to type - and read nothing at all if they never did. Only the
 // winner writes it, and only once, so nobody is counted twice.
 async function recordResult(g){
-  if(soloGame || !g.order || g.order.length < 2) return;
+  if(!g.order) return;
+  const solo = !!soloGame;
+  const shared = !solo && g.order.length >= 2;
+  if(!solo && !shared) return;
 
   // Every phone reads the record a moment after the win screen lands, by which
   // time the winner's write is in. Reading twice is cheaper than signalling: a
   // field written back into the game would race whoever presses Done first, and
   // an update on a node that has just been removed puts a malformed game back.
-  if(statsReread !== g.started){
+  if(shared && statsReread !== g.started){
     statsReread = g.started;
     setTimeout(() => { const c = G(); if(c && c.over) showStats(c); }, 2500);
   }
 
-  if(g.winner !== myId || statsFor === g.started) return;
-  statsFor = g.started;
+  // One writer per game: the winner, or this device when it is playing alone.
+  if(!(solo || g.winner === myId)) return;
+  // Reloading with the win screen still up would count the game a second time,
+  // so what says it has been counted has to outlive the page.
+  if(store.get(COUNTED) === String(g.started)) return;
+  store.set(COUNTED, String(g.started));
+
+  recordPlays(g);                 // the private total, which does count solo
+  if(!shared) return;             // the public record does not
   await bumpStats(g);
   const cur = G();
   if(cur && cur.over) showStats(cur);          // don't wait 2.5s on your own win
+}
+
+/* Every game each name has played, solo ones included. Kept apart from the
+   win/played record above because nothing in the app reads it back: the rules
+   deny reads on /plays, so it is only ever seen from the Firebase console.
+   That is also why the count is incremented on the server rather than read,
+   added to and written - a node the app cannot read is a node it cannot count
+   by hand. One writer per game, the same as the record: the winner, or this
+   device when it is playing alone. */
+function recordPlays(g){
+  // Solo counts the person, not the computer sitting opposite them.
+  (soloGame ? [myId] : g.order).forEach(pid => {
+    const nm = (g.names[pid] || "").trim().slice(0,14);
+    // "You" is startSolo's display placeholder, never a name anyone chose.
+    if(!nm || nm === "You") return;
+    update(ref(db, "plays/" + nameKey(nm)), { name: nm, games: increment(1) })
+      .catch(()=>{});
+  });
 }
 
 // One row per name, so a record survives the shortcut button being deleted.
@@ -2119,7 +2148,7 @@ async function saveToHall(g){
 
 function backToTable(){
   if(soloGame) return endSolo();
-  archived = false; statsFor = null; statsReread = null;
+  archived = false; statsReread = null;
   veil("veilWin", false);
   remove(gameRef()).catch(()=>{});
 }
