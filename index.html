@@ -739,9 +739,9 @@ function bestKeep(faces, idxs){
 const CPU_CAP = { 1: 350, 2: 450, 3: 700, 4: 1200, 5: 2000 };
 
 function cpuShouldRoll(g, best, total){
-  if(best.left === 0) return true;                       // hot dice, free reroll
-  if(6 - best.left < BANK_MIN_DICE) return true;         // not enough set aside to stop
-  if(total < needToBank(g, CPU)) return true;             // can't stop anyway
+  // The same test the stop itself uses, so the two can never disagree: if
+  // anything would refuse the stop, there is nothing to decide - roll on.
+  if(bankBlocked(g, 6 - best.left, total)) return true;
   const human = g.order.find(p => p !== CPU);
   const behind = (g.scores[human] || 0) - (g.scores[CPU] || 0);
   const chase = behind > 2500 ? 250 : 0;                 // press harder when losing
@@ -1966,18 +1966,29 @@ function nope(why){
   veil("veilNope", true);
 }
 
+/* Every gate on ending a turn, in the one place both callers pass through. The
+   button used to hold them on its own, which meant they bound the player and
+   not the computer - it calls straight in here, and would stop on three dice,
+   or under the minimum, or on six for six. The button still checks first so it
+   can say which gate is shut; this is what actually holds them. */
+function bankBlocked(g, setAside, points){
+  if(setAside >= 6) return "hot";                 // six for six has to roll on
+  if(setAside < BANK_MIN_DICE) return "dice";
+  if(points < needToBank(g, g.order[g.turn])) return "points";
+  return null;
+}
+
 function doBank(){
   const g = G();
-  let points = g.points;
+  let points = g.points, used = 0;
   if(mySel.size){
     const c = commitSelection(g);
     if(!c) return;
     points += c.gained;
+    used = c.used;
   }
-  // The button already refuses this with a reason, but the computer calls
-  // straight in here, and used to bank whatever it fancied - 400 with nothing
-  // on the board. The gate belongs where every caller passes through it.
-  if(points < needToBank(g, g.order[g.turn])) return;
+  const kept = g.states.filter(st => st === "kept").length;
+  if(bankBlocked(g, kept + used, points)) return;
   mySel.clear();
   advance(points);
 }
