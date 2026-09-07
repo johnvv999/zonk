@@ -288,9 +288,8 @@ Standard six-die chart: 1s are 100, 5s are 50, three of a kind is 100 × face
 (1000 for three 1s), four of a kind doubles it, five of a kind quadruples it, six
 of a kind is 3000, a 1–6 straight is 1500, three pairs is 1500.
 
-Keep at least one scoring die per roll — two while all six are still live, which
-means the first roll of a turn and every roll after a roll-out, unless the roll
-only offers one. Zonk wipes the turn. Reaching the target triggers a final round.
+Keep at least one scoring die per roll. Zonk wipes the turn. Reaching the target
+triggers a final round.
 
 While all six are live the dice come down in any order: a 1 or a 5 drops below
 the line on its own, anything else waits above it in a gold band until all six

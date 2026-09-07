@@ -479,7 +479,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <p>Three is the whole set. A fourth matching die adds nothing on its own - unless it's a 1 or a 5, which always score singly. So four 2s is still 200, and the odd one can't be kept.</p>
     <h3>Your turn</h3>
     <ul>
-      <li>Every roll, keep at least one scoring die. With all six still live, take two - unless the roll only offers one.</li>
+      <li>Every roll, keep at least one scoring die.</li>
       <li>With all six live you can pull them down in any order. A 1 or a 5 drops below the line on its own; anything else waits above it in a gold band until all six are down and the pick is judged whole.</li>
       <li>Pull all six down and they don't score together, and the lot goes back up. Nothing lost, pick again.</li>
       <li>To stop, you need four dice set aside. Under four and you have to roll on.</li>
@@ -560,7 +560,6 @@ const ROLL_SHOW_MS = 2000;   // long enough to read the losing dice
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
 const BANK_MIN_DICE = 4;     // dice set aside before a turn may be ended
-const OPEN_MIN_DICE = 2;     // scoring dice to take when all six are live
 /* What it takes to stop climbs as you do: 400 to begin with, and another 50
    every 2500 you have banked. Each of those steps is a Score-B. This replaced
    the old flat 300, and the separate 500 to get on the board with it. */
@@ -714,13 +713,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Every legal keep from the dice in play, scored on points plus a nudge toward
 // leaving dice on the table (fewer dice means a much higher chance of zonking).
-function bestKeep(faces, idxs, minPick){
-  const min = minPick || 1;
+function bestKeep(faces, idxs){
   let best = null;
   for(let m = 1; m < (1 << idxs.length); m++){
     const pick = [];
     for(let b = 0; b < idxs.length; b++) if(m & (1 << b)) pick.push(idxs[b]);
-    if(pick.length < min) continue;
     const sc = scoreSet(pick.map(i => faces[i]));
     if(sc === null) continue;
     const left = idxs.length - pick.length;
@@ -763,10 +760,7 @@ async function cpuTurn(){
       }
 
       const idxs = g.states.map((st,i) => st !== "kept" ? i : -1).filter(i => i >= 0);
-      // The opening-roll minimum binds the computer too. Where two scoring dice
-      // cannot come down together it falls back to whatever single one there is.
-      const best = (allSixLive(g) ? bestKeep(g.faces, idxs, OPEN_MIN_DICE) : null)
-                || bestKeep(g.faces, idxs);
+      const best = bestKeep(g.faces, idxs);
       if(!best) break;                       // nothing scores; the zonk flow has it
 
       await sleep(550);
@@ -1297,15 +1291,6 @@ function dieNode(i, face, state, small, interactive){
 // every roll after a roll-out. That is when a player can still use all six, so
 // it governs both the free pick order and the two-dice minimum.
 function allSixLive(g){ return !!g && g.states.every(st => st !== "kept"); }
-
-// Can two scoring dice come down together off this roll? With only one on the
-// table the minimum cannot be met, and holding anyone to it would leave them
-// with no legal move at all - so in that case the single die still stands.
-function twoCanCome(g){
-  const idxs = [];
-  g.states.forEach((st,i) => { if(st !== "kept") idxs.push(i); });
-  return bestKeep(g.faces, idxs, OPEN_MIN_DICE) !== null;
-}
 
 function canAdd(idx){
   const g = G();
@@ -1878,17 +1863,9 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   const enoughDice = setAside >= BANK_MIN_DICE;
   const canBank = valid && !hotDice && enoughDice && running >= need;
 
-  // A roll that still has all six dice in play has to take two scoring dice
-  // with it. Later rolls in the same turn are unchanged - one is enough.
-  const openRoll = allSixLive(g);
-  const tooFew = openRoll && selFaces.length < OPEN_MIN_DICE && twoCanCome(g);
   roll.disabled = !valid;
   roll.textContent = "Roll";
-  roll.onclick = () => {
-    if(tooFew) return nope("With all six live you need " + OPEN_MIN_DICE
-                           + " scoring dice, not " + selFaces.length + ".");
-    doRoll();
-  };
+  roll.onclick = doRoll;
   // Just "Done". Whichever gate is shut is spelled out on the Wanna stop screen,
   // so the button does not need to carry it too.
   bank.textContent = "Done";
