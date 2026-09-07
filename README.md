@@ -198,6 +198,11 @@ belong to everyone — a roll-out is deliberately shared — but against the com
 they made a screen the player had already seen come back on a turn that wasn't
 theirs.
 
+The rules are reachable from every screen a player sits on — the opening
+screen, the table, the roll for order, and the game itself. They open over
+whatever is there and close back onto it; the full-screen artwork does not carry
+the button.
+
 ## The hall of fame
 
 When a game ends, the winner types a victory line. That plus the final scores gets

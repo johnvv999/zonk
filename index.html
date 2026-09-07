@@ -212,7 +212,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .escape{display:flex;justify-content:center;gap:14px;padding-bottom:6px;min-height:34px}
 .escape button{display:none;color:var(--muted);font-size:13px;padding:8px 4px;
   text-decoration:underline;text-underline-offset:4px}
-.escape button.on{display:block}
+.escape button.on,.escape button.always{display:block}
 
 .veil{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;
   justify-content:center;gap:15px;padding:30px 24px;text-align:center;
@@ -346,7 +346,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <button class="ghost" id="btnNoInstall" style="display:none">Play without installing</button>
 
   <div style="display:flex;justify-content:center;gap:6px">
-    <button class="ghost" id="openRules1">Rules</button>
+    <button class="ghost js-rules">Rules</button>
     <button class="ghost" id="openHall1">Hall of fame</button>
   </div>
 </section>
@@ -362,7 +362,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <button class="big-btn" id="btnStart">Start game</button>
   <button class="big-btn quiet" id="btnSolo">Play solo?</button>
   <div style="display:flex;justify-content:center;gap:6px">
-    <button class="ghost" id="openRules2">Rules</button>
+    <button class="ghost js-rules">Rules</button>
     <button class="ghost" id="openHall2">Hall of fame</button>
     <button class="ghost" id="btnLeave">Leave the table</button>
   </div>
@@ -377,7 +377,10 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <div class="plist" id="rollList"></div>
   <button class="big-btn" id="btnRollOff">Roll</button>
   <button class="big-btn quiet" id="btnRollNudge" style="display:none">Roll for whoever's missing</button>
-  <button class="ghost" id="btnCancelRoll">Back to the table</button>
+  <div style="display:flex;justify-content:center;gap:6px">
+    <button class="ghost js-rules">Rules</button>
+    <button class="ghost" id="btnCancelRoll">Back to the table</button>
+  </div>
 </section>
 
 <section id="game" class="screen">
@@ -394,6 +397,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   </div>
   <div class="actions" id="actions"></div>
   <div class="escape">
+    <button class="js-rules always">Rules</button>
     <button id="btnSkip">Skip this player</button>
     <button id="btnAbandon">Abandon this game</button>
   </div>
@@ -2403,8 +2407,11 @@ $("quoteInput").addEventListener("input", () => clearTimeout(quoteTimer));
 $("btnQuote").onclick = () => { clearTimeout(quoteTimer); postQuote($("quoteInput").value); };
 $("btnSkipQuote").onclick = () => { clearTimeout(quoteTimer); postQuote("").then(backToTable); };
 $("btnDone").onclick = backToTable;
-$("openRules1").onclick = () => veil("veilRules", true);
-$("openRules2").onclick = () => veil("veilRules", true);
+// The rules are reachable from every screen a player sits on - home, the table,
+// the roll for order and the game itself - so they all carry the same button.
+document.querySelectorAll(".js-rules").forEach(b => {
+  b.onclick = () => veil("veilRules", true);
+});
 $("closeRules").onclick = () => veil("veilRules", false);
 $("openHall1").onclick = openHall;
 $("openHall2").onclick = openHall;
