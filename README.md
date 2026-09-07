@@ -284,9 +284,14 @@ to notice the storage.
 
 ## Rules implemented
 
-Standard six-die chart: 1s are 100, 5s are 50, three of a kind is 100 × face
-(1000 for three 1s), four of a kind doubles it, five of a kind quadruples it, six
-of a kind is 3000, a 1–6 straight is 1500, three pairs is 1500.
+1s are 100, 5s are 50, three of a kind is 100 × face (1000 for three 1s), a 1–6
+straight is 1500 and three pairs is 1500.
+
+There is no four-of-a-kind bonus, and never was one here. A group of three is the
+whole set; a fourth matching die adds nothing of its own unless it is a 1 or a 5,
+which always score singly. So four 1s is 1100 and four 5s is 550, while four 2s
+is not a legal keep at all — you take the three for 200 and leave the fourth in
+the tray. Beyond that it simply counts triples: six 1s is 2000, six 2s is 400.
 
 Keep at least one scoring die per roll. Zonk wipes the turn. Reaching the target
 triggers a final round.
@@ -308,7 +313,8 @@ six plus whatever is going down now; hot dice bring all six back, so the count
 starts again with them.
 
 Three pairs is strict — three distinct values with exactly two each. Some tables
-count four-of-a-kind plus a pair; that's a change in `scoreSet()`.
+count four-of-a-kind plus a pair, and some pay a bonus for four or more of a
+kind; neither is played here, and both would be a change in `scoreSet()`.
 
 ## Where things live in the code
 
