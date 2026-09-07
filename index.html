@@ -279,6 +279,21 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
    can spare, so this one is anchored left rather than centred. What goes
    instead is wall on the right. */
 #scoreBArt{object-position:left center}
+/* The art is a 1:2 portrait. A phone is close enough to that to fill the screen
+   with it, so it is cropped to cover. A desktop window is far wider than tall,
+   where cover throws away the top and bottom - and the top is where the wordmark
+   is, so SCORE B! disappeared entirely. Past the art's own shape, fit the whole
+   picture in and let the veil's own dark stand at the sides. */
+@media (min-aspect-ratio: 1/2){
+  #ccArt,#rolloutArt,#cosmosArt,#scoreBArt,#splash img{
+    object-fit:contain;object-position:center}
+}
+/* A veil showing a picture paints a solid ground rather than a translucent one
+   over a blurred backdrop. There is nothing behind worth seeing through it, and
+   sampling the backdrop is what smears a band down the edge of the screen on
+   some desktop GPUs - which is the repeat, not the image. */
+#veilColor,#veilScoreB,#veilCosmos,#veilRollout,#veilZonk{
+  background:var(--table);backdrop-filter:none;-webkit-backdrop-filter:none}
 #veilColor h2.off,#veilColor p.off,
 #veilRollout h2.off,#veilRollout p.off,
 #veilCosmos h2.off,#veilScoreB h2.off{display:none}
