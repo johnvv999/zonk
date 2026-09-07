@@ -1863,9 +1863,17 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   const enoughDice = setAside >= BANK_MIN_DICE;
   const canBank = valid && !hotDice && enoughDice && running >= need;
 
-  roll.disabled = !valid;
+  // Any die can be set aside while all six are live, so a pick can hold one that
+  // contributes nothing. Roll used to go quietly dead in that state, which reads
+  // as the game refusing a perfectly good set of ones and fives - the offending
+  // die is easy to miss. It stays live and says which way is out.
+  roll.disabled = !selFaces.length;
   roll.textContent = "Roll";
-  roll.onclick = doRoll;
+  roll.onclick = () => {
+    if(selScore === null)
+      return nope("One of those doesn't score, on its own or as part of a set. Tap it back up.");
+    doRoll();
+  };
   // Just "Done". Whichever gate is shut is spelled out on the Wanna stop screen,
   // so the button does not need to carry it too.
   bank.textContent = "Done";
