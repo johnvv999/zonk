@@ -296,12 +296,16 @@ the tray. Beyond that it simply counts triples: six 1s is 2000, six 2s is 400.
 Keep at least one scoring die per roll. Zonk wipes the turn. Reaching the target
 triggers a final round.
 
-While all six are live the dice come down in any order: a 1 or a 5 drops below
-the line on its own, anything else waits above it in a gold band until all six
-are down and the pick is judged whole. Six that don't score together all go back
-up, with nothing lost. Six that do score go hot — no banking on six for six, and
-rather than waiting on a Roll press the turn throws them again by itself, after
-the roll-out or colour coded screen has played.
+The dice come down in any order. A die may join a pick whenever that pick can
+still be finished into something that scores, so one of a triple or the 2 opening
+a straight is fine — the rest can follow. A die no finish can use is refused: it
+shakes, buzzes, and takes no band. While all six are live a 1 or a 5 drops below
+the line on its own and anything else waits above it in a gold band until the set
+it belongs to is complete.
+
+All six set aside goes hot — no banking on six for six, and rather than waiting
+on a Roll press the turn throws them again by itself, after the roll-out or
+colour coded screen has played.
 
 Stopping has two gates, and both must be open. The points: **400 in the turn**,
 and another 50 for every 2,500 you have banked — 450 once you pass 2,500, 500

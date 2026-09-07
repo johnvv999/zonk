@@ -480,8 +480,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <h3>Your turn</h3>
     <ul>
       <li>Every roll, keep at least one scoring die.</li>
-      <li>With all six live you can pull them down in any order. A 1 or a 5 drops below the line on its own; anything else waits above it in a gold band until all six are down and the pick is judged whole.</li>
-      <li>Pull all six down and they don't score together, and the lot goes back up. Nothing lost, pick again.</li>
+      <li>With all six live you can pull them down in any order. A 1 or a 5 drops below the line on its own; anything else waits above it in a gold band until the set it belongs to is complete. A die nothing can use shakes and stays where it is.</li>
       <li>To stop, you need four dice set aside. Under four and you have to roll on.</li>
       <li>You also need points in the turn, and how many climbs with your banked score - 50 more for every 2,500. Crossing one of those steps is a Score-B.</li>
     </ul>
@@ -1268,15 +1267,6 @@ function dieNode(i, face, state, small, interactive){
         return;
       }
       try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}
-      // Any die may come down while all six are live, so the whole six can end
-      // up down without scoring. Nothing part-way counts: the lot goes back up
-      // and the pick starts again, with no points either way.
-      const gnow = G();
-      if(gnow && allSixLive(gnow) && mySel.size === 6
-         && scoreSet([...mySel].map(k => gnow.faces[k])) === null){
-        mySel.clear();
-        nope("Those six don't score together. They all go back up.");
-      }
       touchTurn();                       // still here, still choosing
       render();
     };
@@ -1287,19 +1277,13 @@ function dieNode(i, face, state, small, interactive){
 // A die may only go below the line if some combination of it and the dice still
 // in the tray forms a complete scoring set. So a lone 4 is refused unless two
 // more 4s are sitting there to join it.
-// True while nothing has been kept this run - the first roll of a turn, and
-// every roll after a roll-out. That is when a player can still use all six, so
-// it governs both the free pick order and the two-dice minimum.
-function allSixLive(g){ return !!g && g.states.every(st => st !== "kept"); }
-
+// A die may come down whenever the pick it joins can still be finished into
+// something that scores - which is what lets them be taken in any order: one of
+// a triple, or a 2 opening a straight, is fine because the rest can follow. A
+// die that no finish can use is refused, and shakes rather than taking a band.
 function canAdd(idx){
   const g = G();
   if(!g) return false;
-  // With all six live the pick is judged when all six are down, not tap by tap,
-  // so any die can come down in any order - ones, fives, the parts of a triple,
-  // or a straight. Once something is kept the run is committed and a die that
-  // cannot belong to a scoring pick is refused as before.
-  if(allSixLive(g)) return true;
   const tray = [];
   g.states.forEach((st,i) => { if(st !== "kept") tray.push(i); });
   const sel = [...mySel, idx];
@@ -1863,15 +1847,14 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   const enoughDice = setAside >= BANK_MIN_DICE;
   const canBank = valid && !hotDice && enoughDice && running >= need;
 
-  // Any die can be set aside while all six are live, so a pick can hold one that
-  // contributes nothing. Roll used to go quietly dead in that state, which reads
-  // as the game refusing a perfectly good set of ones and fives - the offending
-  // die is easy to miss. It stays live and says which way is out.
+  // A pick can be part-way - one of a triple down, waiting on the other two.
+  // That is a legal thing to be holding, so Roll stays live and says what it is
+  // waiting for rather than going quietly dead with no reason given.
   roll.disabled = !selFaces.length;
   roll.textContent = "Roll";
   roll.onclick = () => {
     if(selScore === null)
-      return nope("One of those doesn't score, on its own or as part of a set. Tap it back up.");
+      return nope("That pick doesn't score yet. Finish the set or tap it back up.");
     doRoll();
   };
   // Just "Done". Whichever gate is shut is spelled out on the Wanna stop screen,
