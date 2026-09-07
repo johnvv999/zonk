@@ -1456,7 +1456,8 @@ function renderGame(){
      && colorCoded(g.faces, g.states)){
     ccSetFor = g.stamp;
     mySel = new Set([0,1,2,3,4,5]);
-    rolloutFor = g.stamp;      // this screen stands in for the rollout one
+    // Standing in for the roll-out screen is doRoll's business now, since that
+    // is where the flag every phone reads gets written.
   }
   if(myTurn && g.rolled && !g.zonk)
     mySel.forEach(i => { if(states[i]==="tray") states[i] = "sel"; });
@@ -1525,11 +1526,7 @@ function renderGame(){
     kept.append(n);
   }
 
-  if(canTap && selScore !== null && (pendIdx.length + keptIdx.length) === 6
-     && rolloutFor !== g.stamp){
-    rolloutFor = g.stamp;
-    showRollout();
-  }
+
 
   drawActions(g, myTurn, selFaces, selScore, running);
 
@@ -1567,6 +1564,13 @@ function afterRender(g, myTurn){
 
   preloadPtfArt(g);
   preloadCcArt();
+
+  // The roll-out belongs to everyone at the table, not just whoever rolled it.
+  // It rides on the game write, so every phone sees the same thing.
+  if(g.rollout && !g.zonk && !g.over && rolloutFor !== g.stamp){
+    rolloutFor = g.stamp;
+    showRollout();
+  }
 
   // Somebody has just got on the board. Once per game per player, and never on
   // top of another screen.
@@ -1787,6 +1791,12 @@ function doRoll(){
     if(!c) return;
     states = c.states; points += c.gained; live -= c.used;
   }
+  // All six scored, so they all come back. That reset is the only trace it ever
+  // left, and it is gone by the time anyone else sees the write - which is why
+  // the roll-out screen used to be the roller's alone. Record it instead.
+  // A colour coded already has a screen of its own and stands in for this one.
+  const wasColourCoded = colorCoded(g.faces, g.states);
+  const rolledOut = live === 0 && !wasColourCoded;
   if(live === 0){ states = states.map(() => "tray"); live = 6; }
   const faces = g.faces.slice();
   states.forEach((st,i) => { if(st !== "kept") faces[i] = 1 + Math.floor(Math.random()*6); });
@@ -1800,6 +1810,7 @@ function doRoll(){
 
   writeGame(Object.assign({}, g, {
     faces, states, points, live, rolled: true, zonk: zonked, streak,
+    rollout: rolledOut,
     zonkText: zonked ? (points
       ? g.names[roller] + " loses " + points.toLocaleString() + " from this turn."
       : "Nothing scored. Nothing lost.") : "",
@@ -1862,6 +1873,7 @@ function advance(gained){
 
   writeGame(Object.assign({}, g, {
     scores, entered, streak, turn: over ? g.turn : next,
+    rollout: false,
     states: ["tray","tray","tray","tray","tray","tray"],
     points: 0, live: 6, rolled: false, zonk: false, zonkText: "",
     finalRound, triggeredBy: triggeredBy ?? null, over,
@@ -1901,6 +1913,7 @@ function skipTurn(){
   }
   writeGame(Object.assign({}, g, {
     turn: over ? g.turn : next,
+    rollout: false,
     states: ["tray","tray","tray","tray","tray","tray"],
     points: 0, live: 6, rolled: false, zonk: false, zonkText: "",
     over, winner: winner ?? null, stamp: Date.now()
