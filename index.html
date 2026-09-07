@@ -1618,13 +1618,22 @@ function afterRender(g, myTurn){
 
   if(soloGame && !g.over && g.order[g.turn] === CPU) cpuTurn();
 
+  // The reveal is re-armed on every render until it actually fires. It used to
+  // be armed once per roll and cleared at the top of every render, so any
+  // redraw inside those three seconds - a seat touch, a table update, anything
+  // at all - cancelled it, and the guard then stopped it ever being armed
+  // again. The screen simply never came.
+  //
+  // The hide is not cleared here either. It belongs to the screen that is
+  // currently up, and cancelling it left the colour coded veil on the phone for
+  // good, with the dice sitting underneath it.
   clearTimeout(ccTimer);
-  clearTimeout(ccHideTimer);
   if(g.rolled && !g.zonk && !g.over && ccFor !== g.stamp
      && colorCoded(g.faces, g.states)){
-    ccFor = g.stamp;
-    const since = Date.now() - g.stamp;
-    ccTimer = setTimeout(showColorCoded, Math.max(0, CC_DELAY_MS - since));
+    const stamp = g.stamp;
+    const since = Date.now() - stamp;
+    ccTimer = setTimeout(() => { ccFor = stamp; showColorCoded(); },
+                         Math.max(0, CC_DELAY_MS - since));
   }
 
   preloadPtfArt(g);
