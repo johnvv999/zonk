@@ -197,8 +197,8 @@ nobody to notify.
 ## The hall of fame
 
 When a game ends, the winner types a victory line. That plus the final scores gets
-written to `/archive` and is readable from the **Hall of fame** button on the home
-screen. The archive survives everything; live rooms are deleted when the host taps
+written to `/archive` and is readable from the **Hall of fame** button, on the home
+screen and at the table. Newest first, with the winner, the date and their line. The archive survives everything; live rooms are deleted when the host taps
 **Back to start**.
 
 ## Link previews

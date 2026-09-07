@@ -341,6 +341,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <button class="big-btn quiet" id="btnSolo">Play solo?</button>
   <div style="display:flex;justify-content:center;gap:6px">
     <button class="ghost" id="openRules2">Rules</button>
+    <button class="ghost" id="openHall2">Hall of fame</button>
     <button class="ghost" id="btnLeave">Leave the table</button>
   </div>
 </section>
@@ -2172,6 +2173,7 @@ $("openRules1").onclick = () => veil("veilRules", true);
 $("openRules2").onclick = () => veil("veilRules", true);
 $("closeRules").onclick = () => veil("veilRules", false);
 $("openHall1").onclick = openHall;
+$("openHall2").onclick = openHall;
 $("closeHall").onclick = () => veil("veilHall", false);
 $("myName").addEventListener("change", () => store.set("zonk.name", myName()));
 $("myName").addEventListener("keydown", e => { if(e.key === "Enter") sitDown(); });
