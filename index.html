@@ -458,8 +458,17 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <h3>Your turn</h3>
     <ul>
       <li>Every roll, keep at least one scoring die. Dice that don't score can't be kept.</li>
-      <li>To stop, you need four dice set aside as well as the points. Under four and you have to roll on.</li>
-      <li>To stop you need 400 in the turn - and 50 more for every 2,500 you have banked. Crossing one of those is a Score-B.</li>
+      <li>To stop, you need four dice set aside. Under four and you have to roll on.</li>
+      <li>You also need points in the turn, and how many climbs with your banked score - 50 more for every 2,500. Crossing one of those steps is a Score-B.</li>
+    </ul>
+    <dl>
+      <dt>Below 2,500</dt><dd>400</dd>
+      <dt>2,500</dt><dd>450</dd>
+      <dt>5,000</dt><dd>500</dd>
+      <dt>7,500</dt><dd>550</dd>
+      <dt>and on up</dt><dd>+50 each 2,500</dd>
+    </dl>
+    <ul>
       <li>A roll with nothing scoring is a zonk: turn over, turn points gone.</li>
       <li>All six dice set aside is hot dice - they come back and you have to roll again. No banking on six for six.</li>
     </ul>
@@ -952,6 +961,7 @@ let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
 let zonkAnimFor = null;
 let quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
+let statsFor = null, statsReread = null;  // the game whose result went in
 // Newcomers this player has already said no to, so they are asked once each.
 let waitDeclined = new Set();
 let ccTimer = null, ccHideTimer = null, ccFor = null, ccSetFor = null, ccArtAsked = false;
@@ -963,6 +973,11 @@ const G = () => soloGame || (table && table.game) || null;
 const CPU = "computer";
 let cpuBusy = false;
 let rolloutTimer = null, rolloutFor = null;
+// The roller sees the roll-out the moment the sixth die goes down; everyone
+// else sees it on the write that follows. These two bridge the gap so the
+// roller isn't shown it twice: the stamp it was shown for, and a one-shot
+// set by doRoll when that keep is the one being written.
+let rolloutLocalFor = null, rolloutSeenLocally = false;
 // Who was already on the board last time we looked, so getting there shows once.
 let cosmosTimer = null, cosmosFor = null, cosmosArtAsked = false;
 let enteredKnown = null, enteredGame = null;
@@ -1017,6 +1032,7 @@ function leaveTable(){
   store.del("zonk.seated");
   veil("veilWin", false); veil("veilZonk", false);
   wasMyTurn = false; archived = false; joiningNext = false; soloGame = null;
+  statsFor = null; statsReread = null;
   dropSolo();
   cpuBusy = false; mySel.clear();
   show("home");
@@ -1526,7 +1542,16 @@ function renderGame(){
     kept.append(n);
   }
 
-
+  // All six set aside. The roller gets the roll-out now rather than waiting on
+  // the write; afterRender hands it to everyone else when the write lands, and
+  // skips this phone because doRoll saw the same stamp. A colour coded has its
+  // own screen and stands in for this one.
+  if(canTap && selScore !== null && (pendIdx.length + keptIdx.length) === 6
+     && rolloutFor !== g.stamp && !colorCoded(g.faces, g.states)){
+    rolloutFor = g.stamp;
+    rolloutLocalFor = g.stamp;
+    showRollout();
+  }
 
   drawActions(g, myTurn, selFaces, selScore, running);
 
@@ -1569,7 +1594,8 @@ function afterRender(g, myTurn){
   // It rides on the game write, so every phone sees the same thing.
   if(g.rollout && !g.zonk && !g.over && rolloutFor !== g.stamp){
     rolloutFor = g.stamp;
-    showRollout();
+    if(rolloutSeenLocally) rolloutSeenLocally = false;   // the roller already had it
+    else showRollout();
   }
 
   // Somebody has just got on the board. Once per game per player, and never on
@@ -1797,6 +1823,7 @@ function doRoll(){
   // A colour coded already has a screen of its own and stands in for this one.
   const wasColourCoded = colorCoded(g.faces, g.states);
   const rolledOut = live === 0 && !wasColourCoded;
+  if(rolledOut && rolloutLocalFor === g.stamp) rolloutSeenLocally = true;
   if(live === 0){ states = states.map(() => "tray"); live = 6; }
   const faces = g.faces.slice();
   states.forEach((st,i) => { if(st !== "kept") faces[i] = 1 + Math.floor(Math.random()*6); });
@@ -1948,6 +1975,7 @@ function renderWin(g){
   });
 
   showStats(g);
+  recordResult(g);
 
   const hasQuote = !!(g.quote && g.quote.trim());
   // No victory line in solo - there's nobody to say it to, and a solo win
@@ -1976,6 +2004,29 @@ async function postQuote(text){
   const quote = (text || "").trim().slice(0,140);
   await saveToHall(Object.assign({}, g, { quote }));
   await update(gameRef(), { quote, stamp: Date.now() });
+}
+
+// The result goes in the moment the game ends. It used to ride along with the
+// victory line, which meant the win screen read 0 / 0 while the table waited on
+// the winner to type - and read nothing at all if they never did. Only the
+// winner writes it, and only once, so nobody is counted twice.
+async function recordResult(g){
+  if(soloGame || !g.order || g.order.length < 2) return;
+
+  // Every phone reads the record a moment after the win screen lands, by which
+  // time the winner's write is in. Reading twice is cheaper than signalling: a
+  // field written back into the game would race whoever presses Done first, and
+  // an update on a node that has just been removed puts a malformed game back.
+  if(statsReread !== g.started){
+    statsReread = g.started;
+    setTimeout(() => { const c = G(); if(c && c.over) showStats(c); }, 2500);
+  }
+
+  if(g.winner !== myId || statsFor === g.started) return;
+  statsFor = g.started;
+  await bumpStats(g);
+  const cur = G();
+  if(cur && cur.over) showStats(cur);          // don't wait 2.5s on your own win
 }
 
 // One row per name, so a record survives the shortcut button being deleted.
@@ -2025,6 +2076,10 @@ async function showStats(g){
 
 async function saveToHall(g){
   if(soloGame) return;
+  // The hall of fame is a wall of victory lines. A game whose winner said
+  // nothing has nothing to hang there, so it doesn't go up - the win itself is
+  // already counted in the record, which recordResult wrote when the game ended.
+  if(!(g.quote || "").trim()) return;
   if(archived) return;
   archived = true;
   try{
@@ -2036,7 +2091,6 @@ async function saveToHall(g){
         .sort((a,b) => (g.scores[b]||0) - (g.scores[a]||0))
         .map(p => ({ name: (g.names[p]||"").slice(0,14), score: g.scores[p]||0 }))
     });
-    await bumpStats(g);
   }catch(e){
     archived = false;
     $("winQuote").textContent = "The hall of fame write failed. Check your database rules.";
@@ -2045,7 +2099,7 @@ async function saveToHall(g){
 
 function backToTable(){
   if(soloGame) return endSolo();
-  archived = false;
+  archived = false; statsFor = null; statsReread = null;
   veil("veilWin", false);
   remove(gameRef()).catch(()=>{});
 }
@@ -2057,11 +2111,18 @@ async function openHall(){
   if(!configured){ box.innerHTML = "<p>Configure Firebase to see past games.</p>"; return; }
   box.innerHTML = "<p>Loading...</p>";
   try{
-    const snap = await get(query(ref(db,"archive"), orderByChild("finishedAt"), limitToLast(30)));
+    const snap = await get(query(ref(db,"archive"), orderByChild("finishedAt"), limitToLast(60)));
     if(!snap.exists()){ box.innerHTML = "<p>No games finished yet. Be the first.</p>"; return; }
-    const rows = [];
+    let rows = [];
     snap.forEach(ch => { rows.push(ch.val()); });
     rows.reverse();
+    // Entries written before the hall was quotes-only, and any that arrive
+    // hollow, are not shown. Reading a wall of blanks tells nobody anything.
+    rows = rows.filter(r => r && (r.quote || "").trim() && (r.winner || "").trim())
+               .slice(0, 30);
+    if(!rows.length){
+      box.innerHTML = "<p>No victory lines yet. Win one and say something.</p>"; return;
+    }
     box.innerHTML = "";
     rows.forEach(r => {
       const d = document.createElement("div");
@@ -2071,8 +2132,7 @@ async function openHall(){
       d.querySelector(".champ").textContent = r.winner;
       d.querySelector(".when").textContent = new Date(r.finishedAt)
         .toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
-      const q = d.querySelector(".q");
-      if(r.quote) q.textContent = '"' + r.quote + '"'; else q.remove();
+      d.querySelector(".q").textContent = '"' + r.quote.trim() + '"';
       d.querySelector(".line").textContent = (r.scores||[])
         .map(x => x.name + " " + x.score.toLocaleString()).join("   ");
       box.append(d);

@@ -198,8 +198,14 @@ nobody to notify.
 
 When a game ends, the winner types a victory line. That plus the final scores gets
 written to `/archive` and is readable from the **Hall of fame** button, on the home
-screen and at the table. Newest first, with the winner, the date and their line. The archive survives everything; live rooms are deleted when the host taps
+screen and at the table. Newest first, with the winner, the date and their line.
+The archive survives everything; live rooms are deleted when the host taps
 **Back to start**.
+
+It is a wall of victory lines, so a game whose winner said nothing never goes up,
+and older entries without one are filtered out on the way to the screen. Skipping
+the line still counts the game — the win/played record is written separately, by
+the winner, the moment the game ends.
 
 ## Link previews
 
@@ -273,10 +279,13 @@ count four-of-a-kind plus a pair; that's a change in `scoreSet()`.
 
 - `scoreSet(dice)` — best score for a set, or `null` if a die is dead weight.
 - `anyScore(dice)` — zonk detection.
-- `drawActions(g, …)` — the two gates on stopping: the 300/500 score and the four dice.
+- `bankMin(score)` — the turn minimum for a banked score: 400, plus 50 each 2,500.
+- `drawActions(g, …)` — the two gates on stopping: `bankMin` and the four dice.
 - `advance(gained)` — end of turn, final-round trigger, winner selection.
 - `alertMyTurn()` — vibrate, chime, notify.
-- `saveToHall(g)` — the one write to `/archive`.
+- `saveToHall(g)` — the one write to `/archive`, and only when there is a quote.
+- `recordResult(g)` / `bumpStats(g)` — the win/played record, written by the
+  winner when the game ends rather than when the victory line is typed.
 - `COLORS` — 2 red, 2 white, 2 green. Cosmetic only.
 
 Only the active player's phone writes game state; everyone else listens. That's
