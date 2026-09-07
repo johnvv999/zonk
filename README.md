@@ -210,9 +210,10 @@ the winner, the moment the game ends.
 ## The record
 
 `/stats` is one row per name, counting games won and games played across every
-game ever finished at a shared table. The win screen shows the whole of it, not just the people at
-this table, ordered by wins — level on wins, the fewer games played is the better
-record. Names are keyed by `nameKey()`, so the record follows the name rather
+game ever finished at a shared table. The win screen shows the whole of it, not
+just the people at this table: wins only, most first, alphabetical among equals.
+It carries the played count too, but nothing shows it — the screen reports wins,
+not what anyone lost. Names are keyed by `nameKey()`, so the record follows the name rather
 than the phone, and solo games are left out of it entirely.
 
 `/plays` is the other half: one row per name counting **every** game that name

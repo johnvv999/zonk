@@ -442,7 +442,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <h2 class="win-word" id="winName">-</h2>
   <div class="quotebox" id="winQuote"></div>
   <div class="finaltable" id="finalTable"></div>
-  <div class="stats-head" id="statsHead" style="display:none">Every game - won / played</div>
+  <div class="stats-head" id="statsHead" style="display:none">Games won</div>
   <div class="finaltable" id="statsTable"></div>
   <input type="text" id="quoteInput" maxlength="140" placeholder="Say something for the record">
   <button class="big-btn" id="btnQuote">Post it</button>
@@ -2100,16 +2100,16 @@ async function showStats(g){
     }
   }catch(e){}
   // Anyone at this table with nothing on the board yet still belongs on the
-  // list. Reading 0 / 0 beside your name beats not being on it at all.
+  // list. Reading 0 beside your name beats not being on it at all.
   g.order.forEach(pid => {
     const nm = g.names[pid] || "";
     if(nm && !rows.some(r => nameKey(r.name) === nameKey(nm)))
       rows.push({ name: nm, played: 0, won: 0 });
   });
-  // Wins first. Level on wins, fewer games played is the better record, and
-  // level on both it is alphabetical so the order never wanders.
+  // Wins, most first, and alphabetical among equals so the order never wanders.
+  // Nothing here is sorted on games played - it isn't shown, so ordering by it
+  // would move names around for a reason nobody reading the list can see.
   rows.sort((a,b) => (b.won || 0) - (a.won || 0)
-                  || (a.played || 0) - (b.played || 0)
                   || (a.name || "").localeCompare(b.name || "", undefined, {sensitivity:"base"}));
   box.innerHTML = "";
   rows.forEach(r => {
@@ -2117,7 +2117,7 @@ async function showStats(g){
     el.className = "finalrow";
     el.innerHTML = "<span></span><span></span>";
     el.children[0].textContent = r.name;
-    el.children[1].textContent = (r.won || 0) + " / " + (r.played || 0);
+    el.children[1].textContent = (r.won || 0);
     box.append(el);
   });
   head.style.display = "";
