@@ -482,7 +482,8 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
       <li>Every roll, keep at least one scoring die.</li>
       <li>With all six live you can pull them down in any order. A 1 or a 5 drops below the line on its own; anything else waits above it in a gold band until the set it belongs to is complete. A die nothing can use shakes and stays where it is.</li>
       <li>To stop, you need four dice set aside. Under four and you have to roll on.</li>
-      <li>You also need points in the turn, and how many climbs with your banked score - 50 more for every 2,500. Crossing one of those steps is a Score-B.</li>
+      <li>Nothing counts until you are on the board, and that takes 500 in a single turn. Getting there is Enter Cosmos.</li>
+      <li>After that you need points in the turn, and how many climbs with your banked score - 50 more for every 2,500. Crossing one of those steps is a Score-B.</li>
     </ul>
     <dl>
       <dt>Below 2,500</dt><dd>400</dd>
@@ -559,14 +560,21 @@ const ROLL_SHOW_MS = 2000;   // long enough to read the losing dice
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
 const BANK_MIN_DICE = 4;     // dice set aside before a turn may be ended
-/* What it takes to stop climbs as you do: 400 to begin with, and another 50
-   every 2500 you have banked. Each of those steps is a Score-B. This replaced
-   the old flat 300, and the separate 500 to get on the board with it. */
+/* Nothing counts until you are on the board, and it takes 500 in one turn to
+   get there. Bank less and the turn is simply not endable - the points do not
+   go anywhere. Getting there is Enter Cosmos. */
+const ENTRY_MIN = 500;
+/* Once on the board, what it takes to stop climbs as you do: 400 to begin with,
+   and another 50 every 2500 you have banked. Each of those steps is a Score-B.
+   This replaced the old flat 300. */
 const BANK_BASE = 400;
 const BANK_STEP = 50;
 const SCORE_B_EVERY = 2500;
 const SCORE_B_HOLD_MS = 5000;
 const bankMin   = score => BANK_BASE + BANK_STEP * Math.floor((score || 0) / SCORE_B_EVERY);
+// What this player needs in the turn to end it: the opening 500 until they
+// are on the board, and the climbing minimum once they are.
+const needToBank = (g, pid) => (g.entered && g.entered[pid]) ? bankMin(g.scores[pid]) : ENTRY_MIN;
 const scoreTier = score => Math.floor((score || 0) / SCORE_B_EVERY);
 const ZONK_WORD_MS = 900;    // the word's spin-and-swell entrance
 const ZONK_WORD_GUTTER = 20; // clear space left at each side of the word, in px
@@ -733,7 +741,7 @@ const CPU_CAP = { 1: 350, 2: 450, 3: 700, 4: 1200, 5: 2000 };
 function cpuShouldRoll(g, best, total){
   if(best.left === 0) return true;                       // hot dice, free reroll
   if(6 - best.left < BANK_MIN_DICE) return true;         // not enough set aside to stop
-  if(total < bankMin(g.scores[CPU])) return true;         // can't stop anyway
+  if(total < needToBank(g, CPU)) return true;             // can't stop anyway
   const human = g.order.find(p => p !== CPU);
   const behind = (g.scores[human] || 0) - (g.scores[CPU] || 0);
   const chase = behind > 2500 ? 250 : 0;                 // press harder when losing
@@ -1843,7 +1851,7 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   // banked. And the count: four dice set aside - everything kept this run plus
   // whatever is going down now, which is the same as six minus what is left.
   const setAside = 6 - left;
-  const need = bankMin(g.scores[g.order[g.turn]]);
+  const need = needToBank(g, g.order[g.turn]);
   const enoughDice = setAside >= BANK_MIN_DICE;
   const canBank = valid && !hotDice && enoughDice && running >= need;
 
@@ -1868,6 +1876,9 @@ function drawActions(g, myTurn, selFaces, selScore, running){
     else if(!enoughDice)
       nope("You need " + BANK_MIN_DICE + " dice set aside to stop. You have "
            + setAside + ". Roll on.");
+    else if(!entered)
+      nope("You need " + ENTRY_MIN + " in one turn to get on the board. You're at "
+           + running.toLocaleString() + ".");
     else nope("You need " + need + ". You're at " + running.toLocaleString() + ".");
   };
 }
@@ -1971,6 +1982,10 @@ function doBank(){
     if(!c) return;
     points += c.gained;
   }
+  // The button already refuses this with a reason, but the computer calls
+  // straight in here, and used to bank whatever it fancied - 400 with nothing
+  // on the board. The gate belongs where every caller passes through it.
+  if(points < needToBank(g, g.order[g.turn])) return;
   mySel.clear();
   advance(points);
 }
@@ -1983,7 +1998,7 @@ function advance(gained){
   const streak = Object.assign({}, g.streak || {});
   if(gained > 0){
     scores[me] = (scores[me]||0) + gained;
-    entered[me] = true;
+    if(gained >= ENTRY_MIN) entered[me] = true;  // the opening, once
     streak[me] = 0;                              // banking breaks the run
   } else if((streak[me] || 0) >= ZONK_STREAK_PTF){
     streak[me] = 0;                              // PTF clears the count

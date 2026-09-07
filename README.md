@@ -307,7 +307,11 @@ All six set aside goes hot — no banking on six for six, and rather than waitin
 on a Roll press the turn throws them again by itself, after the roll-out or
 colour coded screen has played.
 
-Stopping has two gates, and both must be open. The points: **400 in the turn**,
+Nothing counts until you are on the board, and that takes **500 in a single
+turn** — bank less and the turn simply cannot be ended. Getting there is
+**Enter Cosmos**, and it happens once a game per player.
+
+After that, stopping has two gates, and both must be open. The points: **400 in the turn**,
 and another 50 for every 2,500 you have banked — 450 once you pass 2,500, 500
 past 5,000, and so on. Crossing one of those is a **Score-B**, and it gets a
 screen of its own. And the dice: **four set aside**. A big
