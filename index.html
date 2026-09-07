@@ -479,7 +479,9 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <p>Three is the whole set. A fourth matching die adds nothing on its own - unless it's a 1 or a 5, which always score singly. So four 2s is still 200, and the odd one can't be kept.</p>
     <h3>Your turn</h3>
     <ul>
-      <li>Every roll, keep at least one scoring die. Dice that don't score can't be kept.</li>
+      <li>Every roll, keep at least one scoring die. With all six still live, take two - unless the roll only offers one.</li>
+      <li>With all six live you can pull them down in any order. A 1 or a 5 drops below the line on its own; anything else waits above it in a gold band until all six are down and the pick is judged whole.</li>
+      <li>Pull all six down and they don't score together, and the lot goes back up. Nothing lost, pick again.</li>
       <li>To stop, you need four dice set aside. Under four and you have to roll on.</li>
       <li>You also need points in the turn, and how many climbs with your banked score - 50 more for every 2,500. Crossing one of those steps is a Score-B.</li>
     </ul>
@@ -492,7 +494,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     </dl>
     <ul>
       <li>A roll with nothing scoring is a zonk: turn over, turn points gone.</li>
-      <li>All six dice set aside is hot dice - they come back and you have to roll again. No banking on six for six.</li>
+      <li>All six set aside is hot dice - no banking on six for six. The dice come back and the turn rolls on by itself.</li>
     </ul>
     <h3>Winning</h3>
     <p>Reach 10,000 and everyone else gets one last turn. Highest total wins, and writes a line for the hall of fame.</p>
@@ -558,6 +560,7 @@ const ROLL_SHOW_MS = 2000;   // long enough to read the losing dice
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
 const BANK_MIN_DICE = 4;     // dice set aside before a turn may be ended
+const OPEN_MIN_DICE = 2;     // scoring dice to take when all six are live
 /* What it takes to stop climbs as you do: 400 to begin with, and another 50
    every 2500 you have banked. Each of those steps is a Score-B. This replaced
    the old flat 300, and the separate 500 to get on the board with it. */
@@ -711,11 +714,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Every legal keep from the dice in play, scored on points plus a nudge toward
 // leaving dice on the table (fewer dice means a much higher chance of zonking).
-function bestKeep(faces, idxs){
+function bestKeep(faces, idxs, minPick){
+  const min = minPick || 1;
   let best = null;
   for(let m = 1; m < (1 << idxs.length); m++){
     const pick = [];
     for(let b = 0; b < idxs.length; b++) if(m & (1 << b)) pick.push(idxs[b]);
+    if(pick.length < min) continue;
     const sc = scoreSet(pick.map(i => faces[i]));
     if(sc === null) continue;
     const left = idxs.length - pick.length;
@@ -758,7 +763,10 @@ async function cpuTurn(){
       }
 
       const idxs = g.states.map((st,i) => st !== "kept" ? i : -1).filter(i => i >= 0);
-      const best = bestKeep(g.faces, idxs);
+      // The opening-roll minimum binds the computer too. Where two scoring dice
+      // cannot come down together it falls back to whatever single one there is.
+      const best = (allSixLive(g) ? bestKeep(g.faces, idxs, OPEN_MIN_DICE) : null)
+                || bestKeep(g.faces, idxs);
       if(!best) break;                       // nothing scores; the zonk flow has it
 
       await sleep(550);
@@ -1013,6 +1021,7 @@ const G = () => soloGame || (table && table.game) || null;
 const CPU = "computer";
 let cpuBusy = false;
 let rolloutTimer = null, rolloutFor = null;
+let autoRollTimer = null, autoRollFor = null;
 // The roller sees the roll-out the moment the sixth die goes down; everyone
 // else sees it on the write that follows. These two bridge the gap so the
 // roller isn't shown it twice: the stamp it was shown for, and a one-shot
@@ -1265,6 +1274,15 @@ function dieNode(i, face, state, small, interactive){
         return;
       }
       try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){}
+      // Any die may come down while all six are live, so the whole six can end
+      // up down without scoring. Nothing part-way counts: the lot goes back up
+      // and the pick starts again, with no points either way.
+      const gnow = G();
+      if(gnow && allSixLive(gnow) && mySel.size === 6
+         && scoreSet([...mySel].map(k => gnow.faces[k])) === null){
+        mySel.clear();
+        nope("Those six don't score together. They all go back up.");
+      }
       touchTurn();                       // still here, still choosing
       render();
     };
@@ -1275,9 +1293,28 @@ function dieNode(i, face, state, small, interactive){
 // A die may only go below the line if some combination of it and the dice still
 // in the tray forms a complete scoring set. So a lone 4 is refused unless two
 // more 4s are sitting there to join it.
+// True while nothing has been kept this run - the first roll of a turn, and
+// every roll after a roll-out. That is when a player can still use all six, so
+// it governs both the free pick order and the two-dice minimum.
+function allSixLive(g){ return !!g && g.states.every(st => st !== "kept"); }
+
+// Can two scoring dice come down together off this roll? With only one on the
+// table the minimum cannot be met, and holding anyone to it would leave them
+// with no legal move at all - so in that case the single die still stands.
+function twoCanCome(g){
+  const idxs = [];
+  g.states.forEach((st,i) => { if(st !== "kept") idxs.push(i); });
+  return bestKeep(g.faces, idxs, OPEN_MIN_DICE) !== null;
+}
+
 function canAdd(idx){
   const g = G();
   if(!g) return false;
+  // With all six live the pick is judged when all six are down, not tap by tap,
+  // so any die can come down in any order - ones, fives, the parts of a triple,
+  // or a straight. Once something is kept the run is committed and a die that
+  // cannot belong to a scoring pick is refused as before.
+  if(allSixLive(g)) return true;
   const tray = [];
   g.states.forEach((st,i) => { if(st !== "kept") tray.push(i); });
   const sel = [...mySel, idx];
@@ -1560,8 +1597,16 @@ function renderGame(){
   // three go down together. A pick that scores as a whole (straight, three
   // pairs) drops entire.
   const down = [], up = [];
-  if(pendIdx.length && selScore !== null){
+  const openRoll = keptIdx.length === 0;      // all six still in play
+  const allPicked = pendIdx.length === 6;
+  if(pendIdx.length && selScore !== null && (!openRoll || allPicked)){
     down.push(...pendIdx);
+  } else if(openRoll){
+    // Working towards a roll-out. A 1 or a 5 stands on its own so it drops.
+    // Anything else only counts as part of something, so it waits above the
+    // line in its gold band until all six are down and the pick is judged
+    // whole - then the lot goes below together.
+    pendIdx.forEach(i => ((faces[i] === 1 || faces[i] === 5) ? down : up).push(i));
   } else {
     const c = [0,0,0,0,0,0,0];
     pendIdx.forEach(i => c[faces[i]]++);
@@ -1591,6 +1636,30 @@ function renderGame(){
     rolloutFor = g.stamp;
     rolloutLocalFor = g.stamp;
     showRollout();
+  }
+
+  // All six down and they score, so the turn carries on by itself: nobody
+  // presses Roll for a roll-out. It waits out whichever screen is playing -
+  // the colour coded one runs from the roll, the roll-out one from the pick -
+  // and checks the pick still stands before throwing, since the player has
+  // every one of those seconds to change their mind.
+  if(canTap && selScore !== null && (pendIdx.length + keptIdx.length) === 6
+     && autoRollFor !== g.stamp){
+    autoRollFor = g.stamp;
+    const stamp = g.stamp;
+    const cc = colorCoded(g.faces, g.states);
+    const wait = cc ? Math.max(0, CC_DELAY_MS + CC_HOLD_MS - (Date.now() - stamp))
+                    : ROLLOUT_HOLD_MS;
+    clearTimeout(autoRollTimer);
+    autoRollTimer = setTimeout(() => {
+      const now = G();
+      if(!now || now.stamp !== stamp || now.zonk || now.over) return;
+      if(now.order[now.turn] !== myId) return;
+      const kept = now.states.filter(st => st === "kept").length;
+      if(mySel.size + kept !== 6) return;                       // pick changed
+      if(scoreSet([...mySel].map(k => now.faces[k])) === null) return;
+      doRoll();
+    }, wait);
   }
 
   drawActions(g, myTurn, selFaces, selScore, running);
@@ -1786,13 +1855,13 @@ function drawActions(g, myTurn, selFaces, selScore, running){
 
   const bank = document.createElement("button"); bank.className = "act";
   const roll = document.createElement("button"); roll.className = "act primary";
-  roll.onclick = doRoll;
   box.append(bank, roll);
 
   const entered = g.entered[g.order[g.turn]];
 
   if(!g.rolled){
     roll.textContent = "Roll";
+    roll.onclick = doRoll;
     bank.textContent = "Done";
     bank.onclick = () => nope("Roll the dice first.");
     return;
@@ -1809,8 +1878,17 @@ function drawActions(g, myTurn, selFaces, selScore, running){
   const enoughDice = setAside >= BANK_MIN_DICE;
   const canBank = valid && !hotDice && enoughDice && running >= need;
 
+  // A roll that still has all six dice in play has to take two scoring dice
+  // with it. Later rolls in the same turn are unchanged - one is enough.
+  const openRoll = allSixLive(g);
+  const tooFew = openRoll && selFaces.length < OPEN_MIN_DICE && twoCanCome(g);
   roll.disabled = !valid;
   roll.textContent = "Roll";
+  roll.onclick = () => {
+    if(tooFew) return nope("With all six live you need " + OPEN_MIN_DICE
+                           + " scoring dice, not " + selFaces.length + ".");
+    doRoll();
+  };
   // Just "Done". Whichever gate is shut is spelled out on the Wanna stop screen,
   // so the button does not need to carry it too.
   bank.textContent = "Done";
