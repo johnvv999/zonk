@@ -192,7 +192,11 @@ A solo game is kept on the device too, so leaving the app and coming back drops
 you where you left off rather than at the opening screen. It is discarded once
 the game ends, or after the same one-hour limit that clears an abandoned table.
 Solo games don't sound turn alerts — it's one player on one device, so there is
-nobody to notify.
+nobody to notify. They don't celebrate the computer either: the roll-out, Score-B
+and Enter Cosmos screens are shown only for the player. At a shared table those
+belong to everyone — a roll-out is deliberately shared — but against the computer
+they made a screen the player had already seen come back on a turn that wasn't
+theirs.
 
 ## The hall of fame
 

@@ -1617,8 +1617,12 @@ function afterRender(g, myTurn){
   // It rides on the game write, so every phone sees the same thing.
   if(g.rollout && !g.zonk && !g.over && rolloutFor !== g.stamp){
     rolloutFor = g.stamp;
+    // doRoll leaves the turn where it was, so this still names whoever rolled.
+    // At a shared table everyone sees it. In solo the other player is the
+    // computer, and its roll-out is not the player's to celebrate.
+    const worthSeeing = !soloGame || g.order[g.turn] === myId;
     if(rolloutSeenLocally) rolloutSeenLocally = false;   // the roller already had it
-    else showRollout();
+    else if(worthSeeing) showRollout();
   }
 
   // Somebody has just got on the board. Once per game per player, and never on
@@ -1634,12 +1638,16 @@ function afterRender(g, myTurn){
 
     // Getting on the board comes first: a single bank can do both, and two
     // full-screen celebrations at once would just tread on each other.
+    // Milestones belong to the people at the table. In solo the only other
+    // player is the computer, and celebrating its crossings is what made these
+    // screens look like they were repeating a turn the player never had.
+    const worthSeeing = p => !soloGame || p === myId;
     let shown = false;
-    if(enteredKnown && g.order.some(p => nowIn[p] && !enteredKnown[p])
+    if(enteredKnown && g.order.some(p => worthSeeing(p) && nowIn[p] && !enteredKnown[p])
        && cosmosFor !== g.stamp && !busy){
       cosmosFor = g.stamp; showCosmos(); shown = true;
     }
-    if(!shown && tierKnown && g.order.some(p => tiers[p] > (tierKnown[p] || 0))
+    if(!shown && tierKnown && g.order.some(p => worthSeeing(p) && tiers[p] > (tierKnown[p] || 0))
        && scoreBFor !== g.stamp && !busy){
       scoreBFor = g.stamp; showScoreB();
     }
