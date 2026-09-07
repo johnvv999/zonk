@@ -318,7 +318,7 @@ and another 50 for every 2,500 scored — 450 once you pass 2,500, 500 past
 screen of its own. And the dice: **four set aside**. A big
 score doesn't buy you out of the second one — three 1s is 1000 and still only
 three dice, so you roll on. What counts is everything kept in the current run of
-six plus whatever is going down now; hot dice bring all six back, so the count
+six plus whatever is going down now; a rollout brings all six back, so the count
 starts again with them.
 
 Three pairs is strict — three distinct values with exactly two each. Some tables
