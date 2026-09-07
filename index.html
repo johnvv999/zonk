@@ -817,6 +817,23 @@ document.addEventListener("visibilitychange", () => {
   if(document.visibilityState === "visible") keepAwake();
 });
 
+/* Permission outlives the page. The button did not read it back, so every
+   reload put it to "Turn on alerts?" again as though nothing had been allowed,
+   and it looked like the setting kept flipping. Sound is primed by the first
+   tap anywhere on the page, so once notifications are granted this button has
+   nothing left to do. */
+function syncAlertsButton(){
+  const b = $("btnAlerts");
+  if(!b) return;
+  if(!("Notification" in window) || Notification.permission !== "granted") return;
+  b.textContent = "Turn alerts are on";
+  b.disabled = true;
+}
+syncAlertsButton();
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible") syncAlertsButton();
+});
+
 async function enableAlerts(){
   primeAudio(); chime();
   try{
