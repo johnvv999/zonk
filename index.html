@@ -561,6 +561,7 @@ const CC_HOLD_MS = 8000;   // the colour-coded screen holds
 const CC_ART_WAIT_MS = 3000; // how long to wait on the picture before using words
 const ROLL_SHOW_MS = 2000;   // long enough to read the losing dice
 const CPU_ROLL_SHOW_MS = 3000; // the computer's roll is news - hold it longer
+const CPU_PTF_SHOW_MS = 2000;  // and a beat less before the PTF picture
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
 const BANK_MIN_DICE = 4;     // dice set aside before a turn may be ended
@@ -1755,13 +1756,16 @@ function afterRender(g, myTurn){
     // shows the same thing at the same moment - and a phone that joins late
     // catches up to whichever beat is current.
     const since = Date.now() - g.stamp;
-    // You watched your own dice land. The computer's roll appears all at once
-    // and is the first you know of it, so it is held a beat longer.
-    const showFor = (soloGame && g.order[g.turn] === CPU) ? CPU_ROLL_SHOW_MS
-                                                          : ROLL_SHOW_MS;
-    const showIn = showFor - since;
     const runs = (g.streak || {})[g.order[g.turn]] || 0;
     const ptf = runs >= ZONK_STREAK_PTF;
+    // You watched your own dice land. The computer's roll appears all at once
+    // and is the first you know of it, so it is held longer - a little less
+    // when the third zonk running is about to put the picture up.
+    const cpuRoll = !!soloGame && g.order[g.turn] === CPU;
+    const showFor = !cpuRoll ? ROLL_SHOW_MS
+                  : ptf      ? CPU_PTF_SHOW_MS
+                             : CPU_ROLL_SHOW_MS;
+    const showIn = showFor - since;
     $("zonkWord").textContent = ptf ? "PTF" : "ZONK";
     // afterRender runs on every render, so the entrance is keyed to the stamp -
     // it plays once per zonk rather than restarting under it.
