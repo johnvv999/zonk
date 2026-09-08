@@ -753,6 +753,12 @@ function cpuShouldRoll(g, best, total){
   return total < (CPU_CAP[best.left] || 0) + chase;
 }
 
+/* Full-screen art the player is still reading. The computer plays on the same
+   device, so without this it rolls away underneath one of these and the player
+   comes back to a turn that already happened. */
+const ART_SCREENS = ["veilZonk","veilColor","veilRollout","veilCosmos","veilScoreB"];
+const artShowing = () => ART_SCREENS.some(id => $(id).classList.contains("on"));
+
 async function cpuTurn(){
   if(cpuBusy) return;
   cpuBusy = true;
@@ -761,6 +767,10 @@ async function cpuTurn(){
       let g = G();
       if(!g || !soloGame || g.over || g.zonk) break;
       if(g.order[g.turn] !== CPU) break;
+
+      // Wait out whatever the player is looking at. Every one of these comes
+      // down on its own timer, so this only ever delays the computer.
+      if(artShowing()){ await sleep(250); continue; }
 
       if(!g.rolled){
         await sleep(850);
