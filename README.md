@@ -168,6 +168,14 @@ from whichever came last.
 
 Solo games are exempt, since nobody is waiting on you.
 
+A game that has not moved at all for **five minutes** offers everyone still
+watching an **Abandon this game** button, which clears it and returns the table.
+That is measured from the last write, so a game genuinely in play never shows it.
+Both this and the skip button are set from how long it has actually been rather
+than cleared and re-armed on each redraw — done the other way, either one
+vanished for a beat whenever the screen repainted, which is exactly when someone
+is reaching for it.
+
 Starting a solo game steps away from the shared table, so anyone who sits down
 while you're playing one is there on their own. When that happens you're asked
 whether to abandon the solo game and join them — once per newcomer, so saying no

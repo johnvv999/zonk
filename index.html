@@ -1812,21 +1812,34 @@ function afterRender(g, myTurn){
 
   clearTimeout(escTimer);
   clearTimeout(abandonTimer);
-  $("btnSkip").classList.remove("on");
-  $("btnAbandon").classList.remove("on");
-  if(!g.over){
+  /* Both of these are set from how long it has actually been, and armed only
+     for the moment they are due. They used to be cleared on every redraw and
+     re-armed behind a floor, so once either was up, any redraw took it off the
+     screen for a beat - out from under the finger reaching for it. */
+  if(g.over){
+    $("btnSkip").classList.remove("on");
+    $("btnAbandon").classList.remove("on");
+  } else {
     const since = Date.now() - g.stamp;
     // Nothing is ever skipped automatically - a slow player is left to play.
     // Two minutes with no sign of life on the turn and everybody else is
     // offered the button, and one of them decides. In a solo game the other
     // player is a computer this same device drives, so it is never absent, and
     // "Abandon Game?" sits on screen throughout.
-    if(!soloGame && !myTurn && !g.zonk && g.order.length > 1){
+    const canSkip = !soloGame && !myTurn && !g.zonk && g.order.length > 1;
+    const quiet = Date.now() - lastSeenOnTurn(g);
+    $("btnSkip").classList.toggle("on", canSkip && quiet >= TURN_LIMIT_MS);
+    if(canSkip && quiet < TURN_LIMIT_MS){
       escTimer = setTimeout(() => $("btnSkip").classList.add("on"),
-        Math.max(500, TURN_LIMIT_MS - (Date.now() - lastSeenOnTurn(g))));
+        TURN_LIMIT_MS - quiet);
     }
-    abandonTimer = setTimeout(() => $("btnAbandon").classList.add("on"),
-      Math.max(2000, ABANDON_MS - since));
+    // Five minutes of the game standing still and anyone can end it.
+    const stalled = since >= ABANDON_MS;
+    $("btnAbandon").classList.toggle("on", stalled);
+    if(!stalled){
+      abandonTimer = setTimeout(() => $("btnAbandon").classList.add("on"),
+        ABANDON_MS - since);
+    }
   }
 }
 
