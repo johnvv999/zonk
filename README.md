@@ -168,8 +168,10 @@ from whichever came last.
 
 Solo games are exempt, since nobody is waiting on you.
 
-A game that has not moved at all for **five minutes** offers everyone still
-watching an **Abandon this game** button, which clears it and returns the table.
+A shared game that has not moved at all for **five minutes** offers everyone
+still watching an **Abandon this game** button, which clears it and returns the
+table. Solo is exempt — nobody is being held up, and "Abandon Game?" is on screen
+throughout anyway.
 That is measured from the last write, so a game genuinely in play never shows it.
 Both this and the skip button are set from how long it has actually been rather
 than cleared and re-armed on each redraw — done the other way, either one
@@ -197,8 +199,10 @@ stale lobby would be noticed anyway. The mark is separate from `joined`, since
 turn order sorts on that.
 
 A solo game is kept on the device too, so leaving the app and coming back drops
-you where you left off rather than at the opening screen. It is discarded once
-the game ends, or after the same one-hour limit that clears an abandoned table.
+you where you left off rather than at the opening screen. It is discarded when
+the game ends, and at no other time: a solo game blocks nobody, so it waits for
+its player however long they are gone. The one-hour sweep that clears an
+abandoned shared table does not touch it.
 Solo games don't sound turn alerts — it's one player on one device, so there is
 nobody to notify. The computer also holds off while any full-screen art is up:
 it plays on the same device, so without that it rolls away underneath a screen

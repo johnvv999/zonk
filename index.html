@@ -551,7 +551,7 @@ const TURN_LIMIT_MS = 120000;   // quiet this long and the skip button appears
 const TOUCH_EVERY_MS = 20000;   // how often picking dice marks the turn alive
 const ZONK_STREAK_PTF = 3;
 const QUOTE_WAIT_MS = 30000;      // winner has this long to start typing
-const GAME_MAX_MS = 60 * 60 * 1000;  // a game nobody has touched for an hour is cleared
+const GAME_MAX_MS = 60 * 60 * 1000;  // a shared game nobody has touched for an hour is cleared
 const SEAT_IDLE_MS = 60 * 60 * 1000; // a seat silent this long is cleared
 const SEEN_EVERY_MS = 10 * 60 * 1000; // how often a seated phone says it is still here
 const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
@@ -1115,10 +1115,10 @@ function restoreSolo(){
   let g = null;
   try{ g = JSON.parse(store.get("zonk.solo") || "null"); }catch(e){}
   // Anything we can't safely resume is dropped rather than half-restored: a game
-  // belonging to a previous identity, one already finished (restoring it would
-  // post a second hall entry), or one past the hour a game is allowed to sit.
-  if(!g || !g.order || g.order[0] !== myId || g.over
-     || Date.now() - lastSeenOnTurn(g) > GAME_MAX_MS){
+  // belonging to a previous identity, or one already finished, since restoring
+  // that would post a second hall entry. Age is not a reason - a solo game waits
+  // for its player however long they are gone.
+  if(!g || !g.order || g.order[0] !== myId || g.over){
     if(g) dropSolo();
     return null;
   }
@@ -1403,9 +1403,12 @@ function reapStaleSeats(){
 
 function reapStaleGame(g){
   if(!g || g.over) return false;
+  // A solo game belongs to one player and blocks nobody, so it waits as long as
+  // they need and is theirs alone to end. Only a shared table is cleared out
+  // from under anyone, and only because a stalled one holds up everybody else.
+  if(soloGame) return false;
   if(Date.now() - lastSeenOnTurn(g) < GAME_MAX_MS) return false;
-  if(soloGame){ endSolo(); }
-  else remove(gameRef()).catch(()=>{});
+  remove(gameRef()).catch(()=>{});
   return true;
 }
 
@@ -1833,10 +1836,12 @@ function afterRender(g, myTurn){
       escTimer = setTimeout(() => $("btnSkip").classList.add("on"),
         TURN_LIMIT_MS - quiet);
     }
-    // Five minutes of the game standing still and anyone can end it.
-    const stalled = since >= ABANDON_MS;
+    // Five minutes of the game standing still and anyone still watching can end
+    // it. Not in solo: nobody is being held up, and "Abandon Game?" is on
+    // screen the whole time anyway.
+    const stalled = !soloGame && since >= ABANDON_MS;
     $("btnAbandon").classList.toggle("on", stalled);
-    if(!stalled){
+    if(!soloGame && !stalled){
       abandonTimer = setTimeout(() => $("btnAbandon").classList.add("on"),
         ABANDON_MS - since);
     }
