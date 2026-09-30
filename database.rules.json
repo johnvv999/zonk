@@ -10,7 +10,7 @@
       ".read": true,
       ".indexOn": "finishedAt",
       "$entry": {
-        ".write": "!data.exists() && newData.hasChildren(['finishedAt','winner','scores'])",
+        ".write": "(!data.exists() && newData.hasChildren(['finishedAt','winner','scores'])) || (!newData.exists() && (!data.child('quote').exists() || !data.child('quote').val().matches(/[^ ]/)))",
         "winner": {
           ".validate": "newData.isString() && newData.val().length <= 40"
         },

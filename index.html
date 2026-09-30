@@ -2331,12 +2331,18 @@ async function openHall(){
     const snap = await get(query(ref(db,"archive"), orderByChild("finishedAt"), limitToLast(60)));
     if(!snap.exists()){ box.innerHTML = "<p>No games finished yet. Be the first.</p>"; return; }
     let rows = [];
-    snap.forEach(ch => { rows.push(ch.val()); });
+    snap.forEach(ch => { rows.push(Object.assign({ key: ch.key }, ch.val())); });
     rows.reverse();
     // Entries written before the hall was quotes-only, and any that arrive
     // hollow, are not shown. Reading a wall of blanks tells nobody anything.
-    rows = rows.filter(r => r && (r.quote || "").trim() && (r.winner || "").trim())
-               .slice(0, 30);
+    const blank = r => !r || !(r.quote || "").trim() || !(r.winner || "").trim();
+    // And they are cleared out rather than just hidden. The archive is
+    // otherwise append-only, so a line somebody actually said can never be
+    // erased - the rules allow a delete only where the quote is empty.
+    rows.filter(blank).forEach(r => {
+      if(r && r.key) remove(ref(db, "archive/" + r.key)).catch(()=>{});
+    });
+    rows = rows.filter(r => !blank(r)).slice(0, 30);
     if(!rows.length){
       box.innerHTML = "<p>No victory lines yet. Win one and say something.</p>"; return;
     }

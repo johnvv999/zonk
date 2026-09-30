@@ -232,7 +232,10 @@ The archive survives everything; live rooms are deleted when the host taps
 **Back to start**.
 
 It is a wall of victory lines, so a game whose winner said nothing never goes up,
-and older entries without one are filtered out on the way to the screen. Skipping
+and older entries without one are cleared out rather than merely hidden — opening
+the hall deletes any it finds. The archive is otherwise append-only: the rules
+permit a delete only where the stored quote holds no visible character, so a line
+somebody actually said can never be edited or erased. Skipping
 the line still counts the game — the win/played record is written separately, by
 the winner, the moment the game ends.
 
