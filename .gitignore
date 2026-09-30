@@ -1,0 +1,17 @@
+# The deployed game is a handful of files at the top level. Everything else in
+# this directory is working material - source from earlier attempts at Zonk,
+# reference art, notes, exports - and belongs on the machine, not in a public
+# repo. Listed explicitly rather than ignoring everything, so a new file that
+# genuinely ships is still noticed.
+Claude outputs/
+DiceImages/
+Archive/
+CSBuildFiles/
+*.docx
+*.zip
+*.kt
+*.cs
+*.xml
+*.json
+!manifest.json
+!database.rules.json
