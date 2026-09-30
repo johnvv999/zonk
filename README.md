@@ -166,7 +166,13 @@ who has walked off. Their phone marks the turn while they choose — at most onc
 every twenty seconds, so it costs next to nothing — and the quiet is measured
 from whichever came last.
 
-Solo games are exempt, since nobody is waiting on you.
+At five minutes the turn goes by itself, scoring nothing — two minutes hands the
+table a button and leaves the decision to them, but one player wandering off must
+not be able to park the game indefinitely. Whichever phone is watching fires it,
+and the quiet is re-read at the moment of writing, so a second phone arriving
+late writes nothing.
+
+Solo games are exempt from both, since nobody is waiting on you.
 
 A shared game that has not moved at all for **five minutes** offers everyone
 still watching an **Abandon this game** button, which clears it and returns the

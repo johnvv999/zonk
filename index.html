@@ -497,6 +497,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     </dl>
     <ul>
       <li>A roll with nothing scoring is a zonk: turn over, turn points gone.</li>
+      <li>Two minutes without a sign of life on a turn and anyone else can skip it. Five and it goes on its own.</li>
       <li>All six set aside is a rollout. Six for six scores nothing on its own - the dice come back, the turn rolls on by itself, and the points only count once you finish your next rolls and stop.</li>
     </ul>
     <h3>Winning</h3>
@@ -548,6 +549,7 @@ const VERSION = "20260903-1636";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
 const TURN_LIMIT_MS = 120000;   // quiet this long and the skip button appears
+const AUTO_SKIP_MS = 300000;    // and this long and it goes by itself
 const TOUCH_EVERY_MS = 20000;   // how often picking dice marks the turn alive
 const ZONK_STREAK_PTF = 3;
 const QUOTE_WAIT_MS = 30000;      // winner has this long to start typing
@@ -557,13 +559,13 @@ const SEEN_EVERY_MS = 10 * 60 * 1000; // how often a seated phone says it is sti
 const ROLLOFF_NUDGE_MS = 15000;      // roll for anyone who has wandered off
 const ROLLOFF_MAX_MS = 5 * 60 * 1000;
 const CC_DELAY_MS = 3000;   // read the roll that did it before the screen
-const CC_HOLD_MS = 8000;   // the colour-coded screen holds
+const CC_HOLD_MS = 2000;   // every picture holds for the same two seconds
 const CC_ART_WAIT_MS = 3000; // how long to wait on the picture before using words
 const ROLL_SHOW_MS = 2000;   // long enough to read the losing dice
 const CPU_ROLL_SHOW_MS = 3000; // the computer's roll is news - hold it longer
 const CPU_PTF_SHOW_MS = 2000;  // and a beat less before the PTF picture
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
-const PTF_HOLD_MS = 3000;    // a PTF is rarer, so it gets a longer look
+const PTF_HOLD_MS = 2000;
 const BANK_MIN_DICE = 4;     // dice set aside before a turn may be ended
 /* Nothing counts until you are on the board, and it takes 500 in one turn to
    get there. Bank less and the turn is simply not endable - the points do not
@@ -575,7 +577,7 @@ const ENTRY_MIN = 500;
 const BANK_BASE = 400;
 const BANK_STEP = 50;
 const SCORE_B_EVERY = 2500;
-const SCORE_B_HOLD_MS = 5000;
+const SCORE_B_HOLD_MS = 2000;
 const bankMin   = score => BANK_BASE + BANK_STEP * Math.floor((score || 0) / SCORE_B_EVERY);
 // What this player needs in the turn to end it: the opening 500 until they
 // are on the board, and the climbing minimum once they are.
@@ -591,8 +593,8 @@ const CC_ART = "colorcoded.webp?v=" + VERSION;
 const ROLLOUT_ART = "rollout.webp?v=" + VERSION;
 const COSMOS_ART = "cosmos.webp?v=" + VERSION;
 const SCORE_B_ART = "scoreb.webp?v=" + VERSION;
-const COSMOS_HOLD_MS = 5000; // getting on the board is once a game
-const ROLLOUT_HOLD_MS = 3000; // how long the roll-out screen holds
+const COSMOS_HOLD_MS = 2000;
+const ROLLOUT_HOLD_MS = 2000;
 const SPLASH_MS = 3000;      // how long the opening art holds
 const ABANDON_MS = 300000;
 const PIPS = {1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
@@ -1021,6 +1023,7 @@ $("myName").value = store.get("zonk.name") || "";
 let table = null, unsub = null, seated = false;
 let mySel = new Set();
 let lastFaces = "", wasMyTurn = false, escTimer = null, abandonTimer = null;
+let autoSkipTimer = null;
 let zonkTimer = null, zonkShowTimer = null, passedStamp = null, archived = false;
 let zonkAnimFor = null;
 let quoteTimer = null, rollNudgeTimer = null, joiningNext = false;
@@ -1820,6 +1823,7 @@ function afterRender(g, myTurn){
      re-armed behind a floor, so once either was up, any redraw took it off the
      screen for a beat - out from under the finger reaching for it. */
   if(g.over){
+    clearTimeout(autoSkipTimer);
     $("btnSkip").classList.remove("on");
     $("btnAbandon").classList.remove("on");
   } else {
@@ -1835,6 +1839,15 @@ function afterRender(g, myTurn){
     if(canSkip && quiet < TURN_LIMIT_MS){
       escTimer = setTimeout(() => $("btnSkip").classList.add("on"),
         TURN_LIMIT_MS - quiet);
+    }
+    // Two minutes offers the button and leaves the decision to the table. Five
+    // and the turn goes on its own, so one player wandering off cannot park the
+    // game for everybody. Whoever is watching fires it; skipTurn re-reads the
+    // quiet before writing, so a second phone arriving late does nothing.
+    clearTimeout(autoSkipTimer);
+    if(canSkip){
+      autoSkipTimer = setTimeout(() => skipTurn(AUTO_SKIP_MS),
+        Math.max(250, AUTO_SKIP_MS - quiet));
     }
     // Five minutes of the game standing still and anyone still watching can end
     // it. Not in solo: nobody is being held up, and "Abandon Game?" is on
@@ -2088,10 +2101,10 @@ function touchTurn(){
   update(gameRef(), { touched: now }).catch(()=>{});
 }
 
-function skipTurn(){
+function skipTurn(limit){
   const g = G();
   if(!g || g.over || g.zonk) return;
-  if(Date.now() - lastSeenOnTurn(g) < TURN_LIMIT_MS) return;
+  if(Date.now() - lastSeenOnTurn(g) < (limit || TURN_LIMIT_MS)) return;
   const next = (g.turn + 1) % g.order.length;
   const over = g.finalRound && next === g.triggeredBy;
   let winner = null;
@@ -2438,7 +2451,7 @@ $("btnWaitingNo").onclick = () => {
 $("btnRollOff").onclick = myRoll;
 $("btnCancelRoll").onclick = () => remove(rollRef()).catch(()=>{});
 $("btnQuitSolo").onclick = () => { if(soloGame) endSolo(); };
-$("btnSkip").onclick = skipTurn;
+$("btnSkip").onclick = () => skipTurn(TURN_LIMIT_MS);
 $("btnAbandon").onclick = abandonGame;
 $("quoteInput").addEventListener("input", () => clearTimeout(quoteTimer));
 $("btnQuote").onclick = () => { clearTimeout(quoteTimer); postQuote($("quoteInput").value); };
