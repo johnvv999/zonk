@@ -269,7 +269,9 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .entry{background:var(--felt);border:1px solid var(--edge);border-radius:11px;padding:13px 15px;margin-bottom:9px}
 .entry .top-line{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 .entry .champ{font-family:var(--display);font-weight:700;font-size:18px;color:var(--brass)}
-.entry .when{color:#8A7A6D;font-size:12px;white-space:nowrap}
+/* The date a line was said is the second thing worth knowing about it, after
+   who said it. At 12px in #8A7A6D it was quiet enough to miss entirely. */
+.entry .when{color:var(--muted);font-size:13px;white-space:nowrap}
 .entry .q{margin:7px 0;font-size:15px;color:var(--cream);font-style:italic}
 .entry .line{color:var(--muted);font-size:13px}
 #ccArt,#rolloutArt,#cosmosArt,#scoreBArt{display:none;position:absolute;inset:0;
