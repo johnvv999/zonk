@@ -1973,6 +1973,11 @@ function commitSelection(g){
 function doRoll(){
   const g = G();
   let states = g.states.slice(), points = g.points, live = g.live;
+  // Nothing can be picked before the first roll of a turn, so any pick held
+  // now is left over from an earlier turn - one that was skipped while dice
+  // were down. Scoring it against the last player's faces failed and left
+  // Roll dead without a word. The computer's turn already clears it here.
+  if(!g.rolled) mySel.clear();
   if(mySel.size){
     const c = commitSelection(g);
     if(!c) return;
