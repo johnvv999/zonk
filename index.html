@@ -1424,7 +1424,9 @@ function reapStaleGame(g){
     if(cur.over || Date.now() - lastSeenOnTurn(cur) < GAME_MAX_MS) return;
     return null;
   }, { applyLocally: false }).catch(()=>{});
-  return true;
+  // Keep drawing: if the server's game turns out to be live, this phone hears
+  // it a moment later; if it is cleared, the snapshot listener moves us on.
+  return false;
 }
 
 // The roll-off die. Same cube as the table dice, just small - and with one
@@ -2162,11 +2164,16 @@ function skipTurn(limit){
   }), "skip the turn");
 }
 
+/* A person pressed this on purpose, so it always clears the table - no stamp
+   check. Guarding it meant a phone whose copy had drifted from the server's
+   pressed it and nothing happened. Any game still on the server is ended. */
 function abandonGame(){
   const g = G();
-  if(!g || Date.now() - g.stamp < ABANDON_MS) return;
+  if(!g) return;
   if(soloGame) return endSolo();
-  guardedGameWrite(g.stamp, () => null).catch(()=>{});
+  remove(gameRef())
+    .then(() => toast("Game cleared."))
+    .catch(err => toast("Couldn't clear the game: " + (err && err.message ? err.message : err)));
 }
 
 
