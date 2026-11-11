@@ -523,7 +523,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, get, update, remove, onValue, push,
-         onDisconnect, query, orderByChild, limitToLast, increment }
+         onDisconnect, query, orderByChild, limitToLast, increment, runTransaction }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 
@@ -1239,13 +1239,17 @@ function resolveRollOff(r){
 function launchGame(order, names){
   const scores = {}, entered = {};
   order.forEach(p => { scores[p] = 0; entered[p] = false; });
-  set(gameRef(), {
+  // Every phone at the roll-off resolves it, so only the first one to get
+  // here starts the game. A late one used to start it again, zeroed.
+  const fresh = {
     order, names, scores, entered, streak: {}, turn: 0,
     faces:[1,3,5,2,6,4], states:["tray","tray","tray","tray","tray","tray"],
     points:0, live:6, rolled:false, zonk:false, zonkText:"",
     finalRound:false, triggeredBy:null, over:false,
     winner:null, quote:"", started: Date.now(), stamp: Date.now()
-  });
+  };
+  runTransaction(gameRef(), cur => cur ? undefined : fresh,
+                 { applyLocally: false }).catch(()=>{});
 }
 
 /* ---------- rendering ---------- */
@@ -1413,7 +1417,13 @@ function reapStaleGame(g){
   // from under anyone, and only because a stalled one holds up everybody else.
   if(soloGame) return false;
   if(Date.now() - lastSeenOnTurn(g) < GAME_MAX_MS) return false;
-  remove(gameRef()).catch(()=>{});
+  // Re-checked on the server's copy: a phone just back from an hour in a pocket
+  // sees its own hour-old snapshot, not the game everyone else kept playing.
+  runTransaction(gameRef(), cur => {
+    if(cur === null) return null;
+    if(cur.over || Date.now() - lastSeenOnTurn(cur) < GAME_MAX_MS) return;
+    return null;
+  }, { applyLocally: false }).catch(()=>{});
   return true;
 }
 
@@ -1949,10 +1959,31 @@ function clean(o){
   return out;
 }
 
+/* A shared write only lands on the game it was worked out from. Every write is
+   the whole game, built from this phone's copy of it - and a phone coming back
+   from the lock screen fires its overdue timers (auto-skip, the zonk fallback)
+   before it has heard the latest. Its copy is from before it slept, so a plain
+   set wrote that old board back over everything since, scores included. Now the
+   server checks the stamp first: if anyone has moved the game on, nothing is
+   written. A null here is only the SDK's first guess; it reruns with the real
+   value. */
+function guardedGameWrite(baseStamp, next){
+  return runTransaction(gameRef(), cur => {
+    if(cur === null) return null;
+    if(cur.stamp !== baseStamp) return;          // moved on: abort
+    return next(cur);
+  }, { applyLocally: false });
+}
+
 function writeGame(obj, what){
   if(soloGame){ soloGame = clean(obj); saveSolo(); render(); return; }
+  const base = G();
+  const baseStamp = base ? base.stamp : undefined;
   try{
-    return set(gameRef(), clean(obj)).catch(err => {
+    return guardedGameWrite(baseStamp, () => clean(obj)).then(res => {
+      // Turned away because the game had moved on: redraw from the real one.
+      if(res && !res.committed) render();
+    }).catch(err => {
       toast("Couldn't " + what + ": " + (err && err.message ? err.message : err));
     });
   }catch(err){
@@ -2105,7 +2136,10 @@ function touchTurn(){
   if(now - lastTouch < TOUCH_EVERY_MS) return;
   if(now - lastSeenOnTurn(g) < TOUCH_EVERY_MS) return;
   lastTouch = now;
-  update(gameRef(), { touched: now }).catch(()=>{});
+  // Through the server's copy, so a game that has been cleared or moved on is
+  // left alone rather than given a stray `touched` field.
+  const stamp = g.stamp;
+  guardedGameWrite(stamp, cur => Object.assign({}, cur, { touched: now })).catch(()=>{});
 }
 
 function skipTurn(limit){
@@ -2132,7 +2166,7 @@ function abandonGame(){
   const g = G();
   if(!g || Date.now() - g.stamp < ABANDON_MS) return;
   if(soloGame) return endSolo();
-  remove(gameRef()).catch(()=>{});
+  guardedGameWrite(g.stamp, () => null).catch(()=>{});
 }
 
 
