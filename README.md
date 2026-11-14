@@ -230,6 +230,18 @@ screen, the table, the roll for order, and the game itself. They open over
 whatever is there and close back onto it; the full-screen artwork does not carry
 the button.
 
+## Clearing the table
+
+If the table gets stuck - a ghost seat, a game nobody can finish - type the secret
+word `cleartable` into the name box and tap **Sit down**. That replaces the whole
+`table` node in Firebase with a single reset mark, which wipes every seat, any game
+in progress, the roll-off and the chat line. Every phone at the table is sent back
+to the opening screen to sit down again. The hall of fame and stats are untouched.
+
+To change the word, edit `RESET_WORD` near the top of the script in `index.html`
+(lowercase, 14 characters at most). It is visible to anyone who reads the page
+source, so treat it as a convenience, not a lock.
+
 ## Table talk
 
 A single line at the foot of the game screen. Tap it and the phone's keyboard

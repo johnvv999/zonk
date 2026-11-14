@@ -571,6 +571,12 @@ const firebaseConfig = {
 const VERSION = "20260903-1636";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
+// Typed into the name box and sent with "Sit down", this wipes the shared table
+// (players, game in progress, roll-off, chat) and sends every phone back to the
+// opening screen. The hall of fame and stats are left alone. Lowercase, 14
+// characters at most. Anyone who reads the page source can see it.
+const RESET_WORD = "cleartable";
+const isResetWord = n => (n || "").trim().toLowerCase() === RESET_WORD;
 const TURN_LIMIT_MS = 90000;    // quiet this long and the skip button appears
 const BOOT_AFTER_SKIPS = 2;     // skipped this many turns running and they can be removed
 const AUTO_SKIP_MS = 300000;    // and this long and it goes by itself
@@ -1116,6 +1122,7 @@ function fail(el,msg){ $(el).textContent = msg; return false; }
 async function sitDown(){
   if(!configured) return fail("homeErr","Add your Firebase config to index.html first.");
   if(!myName()) return fail("homeErr","Put your name in first.");
+  if(isResetWord(myName())) return resetTable();
   store.set("zonk.name", myName());
   $("homeErr").textContent = "";
 
@@ -1137,11 +1144,32 @@ async function sitDown(){
 }
 
 
+// Replacing the whole table with nothing but a fresh reset mark clears every
+// seat and any game at once. The mark is what tells the other phones to stand
+// up: without it their seat heartbeat would quietly sit them back down.
+async function resetTable(){
+  $("myName").value = store.get("zonk.name") || "";
+  try{
+    await set(ref(db, "table"), { reset: Date.now() + "-" + myId });
+    fail("homeErr", "Table cleared. Everyone's been sent back here.");
+  }catch(e){
+    fail("homeErr", "Couldn't clear the table - check your connection.");
+  }
+}
+
 function listen(){
   if(unsub) unsub();
   tableSig = "";
+  let resetSeen;                     // the mark on the table when we started listening
   unsub = onValue(ref(db, "table"), snap => {
     table = snap.exists() ? snap.val() : {};
+    const mark = table.reset || null;
+    if(resetSeen === undefined || soloGame) resetSeen = mark;   // a solo game never touches the table
+    else if(mark !== resetSeen){
+      leaveTable();
+      fail("homeErr", "The table was reset. Sit down again to play.");
+      return;
+    }
     // Every keystroke at the chat line is a table write. Redrawing the whole
     // board for each one would rebuild the dice under the player's finger, so
     // a change that is only the chat line touches only the chat line.
@@ -2753,7 +2781,7 @@ $("closeRules").onclick = () => veil("veilRules", false);
 $("openHall1").onclick = openHall;
 $("openHall2").onclick = openHall;
 $("closeHall").onclick = () => veil("veilHall", false);
-$("myName").addEventListener("change", () => store.set("zonk.name", myName()));
+$("myName").addEventListener("change", () => { if(!isResetWord(myName())) store.set("zonk.name", myName()); });
 $("myName").addEventListener("keydown", e => { if(e.key === "Enter") sitDown(); });
 
 /* ---------------------------------------------------------------
