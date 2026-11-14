@@ -2616,10 +2616,10 @@ if("serviceWorker" in navigator){
 /* ---------- table talk ----------
    One shared line at the foot of the game screen. Whoever taps it first has it
    until they are finished: Done on the keyboard, putting the keyboard away, or
-   30 seconds without touching it. Everyone else sees "Name: text" as it is
+   10 seconds without touching it. Everyone else sees "Name: text" as it is
    typed, and their line stays shut until then. The last thing said stays up
    until somebody else takes the line. Not in solo - there is nobody to read it. */
-const CHAT_IDLE_MS = 30000;
+const CHAT_IDLE_MS = 10000;
 const CHAT_KEEP_MS = 10000;   // a finished line keeps the floor this long
 const CHAT_STALE_MS = 60 * 60 * 1000;  // and stays on screen until replaced, up to an hour
 let chatMine = false, chatIdleTimer = null, chatOpenTimer = null;
