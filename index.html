@@ -571,11 +571,12 @@ const firebaseConfig = {
 const VERSION = "20260903-1636";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
-// Typed into the name box and sent with "Sit down", this wipes the shared table
-// (players, game in progress, roll-off, chat) and sends every phone back to the
-// opening screen. The hall of fame and stats are left alone. Lowercase, 14
-// characters at most. Anyone who reads the page source can see it.
-const RESET_WORD = "cleartable";
+// Typed into the chat line during a game (or the name box, then "Sit down"),
+// this wipes the shared table (players, game in progress, roll-off, chat) and
+// sends every phone back to the opening screen. The hall of fame and stats are
+// left alone. Lowercase, 14 characters at most. Anyone who reads the page
+// source can see it.
+const RESET_WORD = "knoz";
 const isResetWord = n => (n || "").trim().toLowerCase() === RESET_WORD;
 const TURN_LIMIT_MS = 90000;    // quiet this long and the skip button appears
 const BOOT_AFTER_SKIPS = 2;     // skipped this many turns running and they can be removed
@@ -2715,6 +2716,20 @@ async function claimChat(){
 function typeChat(){
   if(!chatMine) return;
   const text = $("chatInput").value.slice(0, 120);
+  const typed = text.trim().toLowerCase();
+  if(typed === RESET_WORD){
+    // Drop the line without marking it finished: that write would land after
+    // the reset and put a stray chat entry back on the cleared table.
+    chatMine = false;
+    clearTimeout(chatIdleTimer);
+    $("chatInput").value = "";
+    $("chatInput").blur();
+    resetTable();
+    return;
+  }
+  // Hold back the letters on their way to the word, so the table never sees it
+  // being spelled out. Anything that stops matching goes out as normal.
+  if(typed && RESET_WORD.startsWith(typed)){ armChatIdle(); return; }
   const name = myName() || store.get("zonk.name") || "?";
   set(chatRef(), { by: myId, name, text, at: Date.now(), done: false }).catch(()=>{});
   armChatIdle();

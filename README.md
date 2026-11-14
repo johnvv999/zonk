@@ -233,10 +233,14 @@ the button.
 ## Clearing the table
 
 If the table gets stuck - a ghost seat, a game nobody can finish - type the secret
-word `cleartable` into the name box and tap **Sit down**. That replaces the whole
+word `knoz` into the chat line during a game. (It also works typed into the name
+box on the opening screen, followed by **Sit down**.) That replaces the whole
 `table` node in Firebase with a single reset mark, which wipes every seat, any game
 in progress, the roll-off and the chat line. Every phone at the table is sent back
 to the opening screen to sit down again. The hall of fame and stats are untouched.
+
+The letters are held back while you type them, so the other players never see the
+word spelled out on the chat line.
 
 To change the word, edit `RESET_WORD` near the top of the script in `index.html`
 (lowercase, 14 characters at most). It is visible to anyone who reads the page
