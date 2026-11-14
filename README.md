@@ -230,6 +230,17 @@ screen, the table, the roll for order, and the game itself. They open over
 whatever is there and close back onto it; the full-screen artwork does not carry
 the button.
 
+## Table talk
+
+A single line at the foot of the game screen. Tap it and the phone's keyboard
+comes up; everyone else sees `Name: text` as you type. While you have it, nobody
+else can type there. You're finished when you press Done on the keyboard, put
+the keyboard away, or go 30 seconds without touching it - then the line is open
+to the next person. The last thing said stays up (for up to 15 minutes) until
+someone else takes the line. It lives at `table/chat`, which the existing
+`table` rule already covers, so there's nothing to change in the Firebase
+rules. Not shown in solo games.
+
 ## The hall of fame
 
 When a game ends, the winner types a victory line. That plus the final scores gets

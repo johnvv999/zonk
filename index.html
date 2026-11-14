@@ -205,7 +205,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 @keyframes spin3d{0%{transform:scale(var(--fit)) rotateX(-210deg) rotateY(260deg)}
   100%{transform:scale(var(--fit)) var(--tilt) var(--face-rot)}}
 
-.actions{display:flex;gap:10px;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.actions{display:flex;gap:10px;padding-bottom:12px}
 .act{flex:1;padding:17px 10px;border-radius:12px;font-family:var(--display);font-weight:700;
   font-size:18px;background:var(--felt);border:1px solid var(--edge)}
 .act.primary{background:var(--brass);color:var(--ink);border-color:var(--brass);font-weight:800}
@@ -216,6 +216,15 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .escape button{display:none;color:var(--muted);font-size:13px;padding:8px 4px;
   text-decoration:underline;text-underline-offset:4px}
 .escape button.on,.escape button.always{display:block}
+/* Table talk: one line, one speaker at a time. 16px so iOS doesn't zoom on focus. */
+.chatbar{padding:2px 0 max(10px,env(safe-area-inset-bottom))}
+.chatbar.off{display:none}
+#chatInput{width:100%;padding:11px 13px;border-radius:10px;background:var(--felt);
+  border:1px solid var(--edge);color:var(--cream);font-size:16px;font-family:inherit;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#chatInput::placeholder{color:var(--muted)}
+#chatInput:focus{outline:none;border-color:var(--brass)}
+.chatbar.busy #chatInput{border-color:var(--live);color:var(--cream)}
 
 .veil{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;
   justify-content:center;gap:15px;padding:30px 24px;text-align:center;
@@ -406,6 +415,10 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <button id="btnSkip">Skip this player</button>
     <button id="btnBoot">Remove player</button>
     <button id="btnAbandon">Abandon this game</button>
+  </div>
+  <div class="chatbar" id="chatBar">
+    <input type="text" id="chatInput" maxlength="120" placeholder="Tap to say something"
+      autocomplete="off" autocorrect="on" enterkeyhint="done" aria-label="Table talk">
   </div>
 </section>
 
@@ -1071,6 +1084,7 @@ const G = () => {
   return live;
 };
 const CPU = "computer";
+let tableSig = "";
 let cpuBusy = false;
 let rolloutTimer = null, rolloutFor = null;
 let autoRollTimer = null, autoRollFor = null;
@@ -1086,6 +1100,7 @@ let scoreBTimer = null, scoreBFor = null, scoreBArtAsked = false, tierKnown = nu
 
 const playersRef = () => ref(db, "table/players");
 const gameRef    = () => ref(db, "table/game");
+const chatRef    = () => ref(db, "table/chat");
 
 /* ---------- sitting down ---------- */
 const myName = () => $("myName").value.trim().slice(0,14);
@@ -1120,9 +1135,16 @@ async function sitDown(){
 
 function listen(){
   if(unsub) unsub();
+  tableSig = "";
   unsub = onValue(ref(db, "table"), snap => {
     table = snap.exists() ? snap.val() : {};
-    render();
+    // Every keystroke at the chat line is a table write. Redrawing the whole
+    // board for each one would rebuild the dice under the player's finger, so
+    // a change that is only the chat line touches only the chat line.
+    const rest = Object.assign({}, table); delete rest.chat;
+    const sig = JSON.stringify(rest);
+    if(sig !== tableSig){ tableSig = sig; render(); }
+    renderChat();
   });
 }
 
@@ -1364,6 +1386,7 @@ function render(){
   if(G()){ renderGame(); }
   else if(table && table.rolloff){ renderRollOff(table.rolloff); }
   else { joiningNext = false; veil("veilJoin", false); renderLobby(); }
+  renderChat();
 }
 
 function renderLobby(){
@@ -2585,6 +2608,101 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.register("sw.js").catch(()=>{});
   });
 }
+
+/* ---------- table talk ----------
+   One shared line at the foot of the game screen. Whoever taps it first has it
+   until they are finished: Done on the keyboard, putting the keyboard away, or
+   30 seconds without touching it. Everyone else sees "Name: text" as it is
+   typed, and their line stays shut until then. The last thing said stays up
+   until somebody else takes the line. Not in solo - there is nobody to read it. */
+const CHAT_IDLE_MS = 30000;
+const CHAT_KEEP_MS = 15 * 60 * 1000;
+let chatMine = false, chatIdleTimer = null, chatOpenTimer = null;
+
+// Someone else holds the line: they haven't finished and haven't gone quiet.
+const chatHeldBy = c => c && c.by && c.by !== myId && !c.done
+  && Date.now() - (c.at || 0) < CHAT_IDLE_MS;
+
+function renderChat(){
+  const bar = $("chatBar"), input = $("chatInput");
+  const off = !configured || !!soloGame || !table;
+  bar.classList.toggle("off", off);
+  if(off || chatMine) return;                 // never touch the line mid-sentence
+  const c = table.chat;
+  const held = chatHeldBy(c);
+  bar.classList.toggle("busy", !!held);
+  input.readOnly = !!held;
+  // A finished line stays up for a while, not forever: yesterday's last word
+  // shouldn't greet tonight's table.
+  const fresh = c && (held || Date.now() - (c.at || 0) < CHAT_KEEP_MS);
+  input.value = fresh && (c.text || held) ? (c.name || "?") + ": " + (c.text || "") : "";
+  // Reopen the line for this phone when the holder's 30 seconds run out, even
+  // if nothing else is written in the meantime.
+  clearTimeout(chatOpenTimer);
+  if(held) chatOpenTimer = setTimeout(renderChat, CHAT_IDLE_MS - (Date.now() - c.at) + 50);
+}
+
+function armChatIdle(){
+  clearTimeout(chatIdleTimer);
+  chatIdleTimer = setTimeout(finishChat, CHAT_IDLE_MS);
+}
+
+async function claimChat(){
+  const input = $("chatInput");
+  if(chatMine || !configured || soloGame || !table) return;
+  if(chatHeldBy(table.chat)){ input.blur(); return; }
+  const name = myName() || store.get("zonk.name") || "?";
+  chatMine = true;
+  input.readOnly = false;
+  input.value = "";
+  armChatIdle();
+  try{
+    // Checked on the server's copy, so two people tapping at once can't both
+    // get it. A null is only the SDK's first guess; it reruns with the real one.
+    const res = await runTransaction(chatRef(), cur => {
+      if(chatHeldBy(cur)) return;
+      return { by: myId, name, text: "", at: Date.now(), done: false };
+    }, { applyLocally: false });
+    if(res && res.committed) return;
+  }catch(e){}
+  chatMine = false;                           // somebody beat us to it
+  clearTimeout(chatIdleTimer);
+  input.blur();
+  renderChat();
+}
+
+function typeChat(){
+  if(!chatMine) return;
+  const text = $("chatInput").value.slice(0, 120);
+  const name = myName() || store.get("zonk.name") || "?";
+  set(chatRef(), { by: myId, name, text, at: Date.now(), done: false }).catch(()=>{});
+  armChatIdle();
+}
+
+function finishChat(){
+  if(!chatMine) return;
+  chatMine = false;
+  clearTimeout(chatIdleTimer);
+  const input = $("chatInput");
+  if(document.activeElement === input) input.blur();
+  // Only our own line is marked finished - never someone who took it since.
+  runTransaction(chatRef(), cur => {
+    if(!cur || cur.by !== myId) return;
+    return Object.assign({}, cur, { done: true, at: Date.now() });
+  }, { applyLocally: false }).catch(()=>{});
+  renderChat();
+}
+
+$("chatInput").addEventListener("focus", claimChat);
+$("chatInput").addEventListener("input", typeChat);
+$("chatInput").addEventListener("keydown", e => {
+  if(e.key === "Enter"){ e.preventDefault(); finishChat(); }
+  else armChatIdle();                         // any key counts as still here
+});
+$("chatInput").addEventListener("blur", () => { if(chatMine) finishChat(); });
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "hidden") finishChat();
+});
 
 $("btnSit").onclick = sitDown;
 $("btnStart").onclick = startGame;
