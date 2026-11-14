@@ -1055,7 +1055,21 @@ let ccTimer = null, ccHideTimer = null, ccFor = null, ccSetFor = null, ccArtAske
 // A solo game lives only in this variable - it never touches the shared table,
 // so any number of people can play solo at once while a group game runs.
 let soloGame = null;
-const G = () => soloGame || (table && table.game) || null;
+/* A shared write is drawn the moment it is made rather than after the server
+   has checked it. The stamp guard in guardedGameWrite runs as a transaction
+   that leaves the local copy alone, so every roll and bank used to sit on the
+   old board for a full round trip - picked dice popping back up into the tray
+   before dropping below the line. The pending board is shown only while the
+   server still holds the game it was built from; once the write lands, or
+   anyone else moves the game on, the server's copy is what shows. */
+let optimistic = null;            // { base: stamp written over, game: the new board }
+let writeChain = Promise.resolve();
+const G = () => {
+  if(soloGame) return soloGame;
+  const live = (table && table.game) || null;
+  if(optimistic && live && live.stamp === optimistic.base) return optimistic.game;
+  return live;
+};
 const CPU = "computer";
 let cpuBusy = false;
 let rolloutTimer = null, rolloutFor = null;
@@ -2011,16 +2025,24 @@ function writeGame(obj, what){
   if(soloGame){ soloGame = clean(obj); saveSolo(); render(); return; }
   const base = G();
   const baseStamp = base ? base.stamp : undefined;
-  try{
-    return guardedGameWrite(baseStamp, () => clean(obj)).then(res => {
-      // Turned away because the game had moved on: redraw from the real one.
-      if(res && !res.committed) render();
-    }).catch(err => {
-      toast("Couldn't " + what + ": " + (err && err.message ? err.message : err));
-    });
-  }catch(err){
+  const next = clean(obj);
+  const mine = { base: baseStamp, game: next };
+  optimistic = mine;
+  render();                                   // show it now, not after the round trip
+  const settle = () => { if(optimistic === mine) optimistic = null; };
+  // Writes go out one after another. A second one is built on the board the
+  // first is still sending, so it has to wait for that board to be the
+  // server's before its own stamp check can pass.
+  const p = writeChain.then(() => guardedGameWrite(baseStamp, () => next)).then(res => {
+    settle();
+    // Turned away because the game had moved on: redraw from the real one.
+    if(res && !res.committed) render();
+  }).catch(err => {
+    settle(); render();
     toast("Couldn't " + what + ": " + (err && err.message ? err.message : err));
-  }
+  });
+  writeChain = p.catch(()=>{});
+  return p;
 }
 
 function commitSelection(g){
