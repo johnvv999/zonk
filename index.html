@@ -677,8 +677,9 @@ function scoreSet(dice){
   const better = v => { if(best===null || v>best) best = v; };
   if(dice.length === 6){
     if([1,2,3,4,5,6].every(f => c[f]===1)) better(1500);
+    // Three pairs may repeat a number: 4-4-4-4-2-2 or six of one face also count.
     let pairs=0, clean=true;
-    for(let f=1;f<=6;f++){ if(c[f]===2) pairs++; else if(c[f]!==0) clean=false; }
+    for(let f=1;f<=6;f++){ if(c[f]%2===0) pairs+=c[f]/2; else clean=false; }
     if(clean && pairs===3) better(1500);
   }
   // Only a group of three counts as a set - there is no bonus for a fourth or
@@ -704,8 +705,9 @@ function anyScore(dice){
   if(c[1] || c[5]) return true;
   for(let f=1;f<=6;f++) if(c[f]>=3) return true;
   if(dice.length === 6){
+    // Three pairs may repeat a number: 4-4-4-4-2-2 or six of one face also count.
     let pairs=0, clean=true;
-    for(let f=1;f<=6;f++){ if(c[f]===2) pairs++; else if(c[f]!==0) clean=false; }
+    for(let f=1;f<=6;f++){ if(c[f]%2===0) pairs+=c[f]/2; else clean=false; }
     if(clean && pairs===3) return true;
   }
   return false;
@@ -753,8 +755,8 @@ function colorCoded(faces, states){
 }
 
 // What a keep is worth, given which dice it is. A colour coded is scored as
-// three pairs, 1500, even when two colours share a number - by the numbers
-// alone, red 3-3 white 3-3 green 2-2 is four 3s and a pair, which isn't a keep.
+// three pairs, 1500, even when two colours share a number (red 3-3 white 3-3
+// green 2-2) - which three pairs now also allows by the numbers alone.
 const COLOR_CODED_PTS = 1500;
 function pickScore(faces, idxs){
   if(idxs.length === 6 && colorCoded(faces, null)) return COLOR_CODED_PTS;
