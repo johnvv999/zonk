@@ -712,12 +712,24 @@ function showColorCoded(){
 function colorCoded(faces, states){
   if(!faces || faces.length !== 6) return false;
   if(states && states.some(st => st === "kept")) return false;
-  const byFace = {};
-  faces.forEach((f,i) => { (byFace[f] = byFace[f] || []).push(i); });
-  const groups = Object.keys(byFace).map(k => byFace[k]);
-  if(groups.length !== 3) return false;
-  if(!groups.every(g => g.length === 2)) return false;
-  return groups.every(g => COLORS[g[0]] === COLORS[g[1]]);
+  // Each colour's two dice show the same number. The pairs need not differ
+  // from each other: red 3-3, white 3-3, green 2-2 is still colour coded. It
+  // used to group by number first, so two colours on one number were missed.
+  const byColor = {};
+  faces.forEach((f,i) => { (byColor[COLORS[i]] = byColor[COLORS[i]] || []).push(f); });
+  return Object.keys(byColor).every(c => {
+    const v = byColor[c];
+    return v.length === 2 && v[0] === v[1];
+  });
+}
+
+// What a keep is worth, given which dice it is. A colour coded is scored as
+// three pairs, 1500, even when two colours share a number - by the numbers
+// alone, red 3-3 white 3-3 green 2-2 is four 3s and a pair, which isn't a keep.
+const COLOR_CODED_PTS = 1500;
+function pickScore(faces, idxs){
+  if(idxs.length === 6 && colorCoded(faces, null)) return COLOR_CODED_PTS;
+  return scoreSet(idxs.map(i => faces[i]));
 }
 
 /* ---------------- the Computer ----------------
@@ -734,7 +746,7 @@ function bestKeep(faces, idxs){
   for(let m = 1; m < (1 << idxs.length); m++){
     const pick = [];
     for(let b = 0; b < idxs.length; b++) if(m & (1 << b)) pick.push(idxs[b]);
-    const sc = scoreSet(pick.map(i => faces[i]));
+    const sc = pickScore(faces, pick);
     if(sc === null) continue;
     const left = idxs.length - pick.length;
     const val = sc + (left === 0 ? 400 : 25 * left);
@@ -1323,7 +1335,7 @@ function canAdd(idx){
   for(let m = 0; m < (1 << rest.length); m++){
     const pick = sel.slice();
     for(let b = 0; b < rest.length; b++) if(m & (1 << b)) pick.push(rest[b]);
-    if(scoreSet(pick.map(i => g.faces[i])) !== null) return true;
+    if(pickScore(g.faces, pick) !== null) return true;
   }
   return false;
 }
@@ -1569,7 +1581,7 @@ function renderGame(){
 
   const selIdx = states.map((st,i) => st==="sel" ? i : -1).filter(i => i>=0);
   const selFaces = selIdx.map(i => faces[i]);
-  const selScore = selFaces.length ? scoreSet(selFaces) : 0;
+  const selScore = selFaces.length ? pickScore(faces, selIdx) : 0;
   const running = g.points + (selScore || 0);
 
   const t = $("tally"), txt = running.toLocaleString();
@@ -1661,7 +1673,7 @@ function renderGame(){
       if(now.order[now.turn] !== myId) return;
       const kept = now.states.filter(st => st === "kept").length;
       if(mySel.size + kept !== 6) return;                       // pick changed
-      if(scoreSet([...mySel].map(k => now.faces[k])) === null) return;
+      if(pickScore(now.faces, [...mySel]) === null) return;
       doRoll();
     }, wait);
   }
@@ -1996,7 +2008,7 @@ function writeGame(obj, what){
 function commitSelection(g){
   const sel = [...mySel].filter(i => g.states[i] === "tray");
   if(!sel.length) return null;
-  const sc = scoreSet(sel.map(i => g.faces[i]));
+  const sc = pickScore(g.faces, sel);
   if(sc === null) return null;
   const states = g.states.slice();
   sel.forEach(i => states[i] = "kept");
