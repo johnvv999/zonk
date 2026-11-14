@@ -401,6 +401,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   <div class="escape">
     <button class="js-rules always">Rules</button>
     <button id="btnSkip">Skip this player</button>
+    <button id="btnBoot">Remove player</button>
     <button id="btnAbandon">Abandon this game</button>
   </div>
 </section>
@@ -550,7 +551,8 @@ const firebaseConfig = {
 const VERSION = "20260903-1636";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
-const TURN_LIMIT_MS = 120000;   // quiet this long and the skip button appears
+const TURN_LIMIT_MS = 90000;    // quiet this long and the skip button appears
+const BOOT_AFTER_SKIPS = 2;     // skipped this many turns running and they can be removed
 const AUTO_SKIP_MS = 300000;    // and this long and it goes by itself
 const TOUCH_EVERY_MS = 20000;   // how often picking dice marks the turn alive
 const ZONK_STREAK_PTF = 3;
@@ -1851,6 +1853,7 @@ function afterRender(g, myTurn){
   if(g.over){
     clearTimeout(autoSkipTimer);
     $("btnSkip").classList.remove("on");
+    $("btnBoot").classList.remove("on");
     $("btnAbandon").classList.remove("on");
   } else {
     const since = Date.now() - g.stamp;
@@ -1861,10 +1864,18 @@ function afterRender(g, myTurn){
     // "Abandon Game?" sits on screen throughout.
     const canSkip = !soloGame && !myTurn && !g.zonk && g.order.length > 1;
     const quiet = Date.now() - lastSeenOnTurn(g);
+    // Someone already skipped twice running can also be taken out of the game,
+    // offered at the same moment as the skip.
+    const absent = g.order[g.turn];
+    const canBoot = canSkip && ((g.skips || {})[absent] || 0) >= BOOT_AFTER_SKIPS;
+    $("btnBoot").textContent = "Remove " + (g.names[absent] || "player");
     $("btnSkip").classList.toggle("on", canSkip && quiet >= TURN_LIMIT_MS);
+    $("btnBoot").classList.toggle("on", canBoot && quiet >= TURN_LIMIT_MS);
     if(canSkip && quiet < TURN_LIMIT_MS){
-      escTimer = setTimeout(() => $("btnSkip").classList.add("on"),
-        TURN_LIMIT_MS - quiet);
+      escTimer = setTimeout(() => {
+        $("btnSkip").classList.add("on");
+        if(canBoot) $("btnBoot").classList.add("on");
+      }, TURN_LIMIT_MS - quiet);
     }
     // Two minutes offers the button and leaves the decision to the table. Five
     // and the turn goes on its own, so one player wandering off cannot park the
@@ -2045,9 +2056,12 @@ function doRoll(){
   const roller = g.order[g.turn];
   const streak = Object.assign({}, g.streak || {});
   if(zonked) streak[roller] = (streak[roller] || 0) + 1;
+  // Rolling is the player showing up, so their run of skips starts over.
+  const skips = Object.assign({}, g.skips || {});
+  delete skips[roller];
 
   writeGame(Object.assign({}, g, {
-    faces, states, points, live, rolled: true, zonk: zonked, streak,
+    faces, states, points, live, rolled: true, zonk: zonked, streak, skips,
     rollout: rolledOut,
     zonkText: zonked ? (points
       ? g.names[roller] + " loses " + points.toLocaleString() + " from this turn."
@@ -2167,7 +2181,13 @@ function skipTurn(limit){
     const best = Math.max.apply(null, g.order.map(p => g.scores[p]||0));
     winner = g.order.find(p => (g.scores[p]||0) === best);
   }
+  // Skips are counted per player, running, so the table can see who keeps
+  // missing their turn. A roll by that player clears the count.
+  const skips = Object.assign({}, g.skips || {});
+  const skipped = g.order[g.turn];
+  skips[skipped] = (skips[skipped] || 0) + 1;
   writeGame(Object.assign({}, g, {
+    skips,
     turn: over ? g.turn : next,
     rollout: false,
     states: ["tray","tray","tray","tray","tray","tray"],
@@ -2179,6 +2199,46 @@ function skipTurn(limit){
 /* A person pressed this on purpose, so it always clears the table - no stamp
    check. Guarding it meant a phone whose copy had drifted from the server's
    pressed it and nothing happened. Any game still on the server is ended. */
+/* Take a player who has been skipped twice running out of the game. Only ever
+   on their own turn, after the same quiet as a skip. Their score goes with
+   them; everyone else carries on in the same order. If they leave the final
+   round's trigger seat behind them, the seat numbers shift down by one. */
+function bootPlayer(){
+  const g = G();
+  if(!g || g.over || g.zonk || soloGame || g.order.length < 2) return;
+  const pid = g.order[g.turn];
+  if(pid === myId) return;
+  if(((g.skips || {})[pid] || 0) < BOOT_AFTER_SKIPS) return;
+  if(Date.now() - lastSeenOnTurn(g) < TURN_LIMIT_MS) return;
+
+  const t = g.turn;
+  const order = g.order.filter(p => p !== pid);
+  const strip = o => { const c = Object.assign({}, o || {}); delete c[pid]; return c; };
+  const scores = strip(g.scores), entered = strip(g.entered),
+        streak = strip(g.streak), skips = strip(g.skips);
+  const turn = t % order.length;              // whoever sat after them is up
+  let triggeredBy = (g.triggeredBy === undefined) ? null : g.triggeredBy;
+  if(g.finalRound && triggeredBy !== null && triggeredBy > t) triggeredBy -= 1;
+  const over = !!g.finalRound && turn === triggeredBy;
+  let winner = null;
+  if(over){
+    const best = Math.max.apply(null, order.map(p => scores[p]||0));
+    winner = order.find(p => (scores[p]||0) === best);
+  }
+  writeGame(Object.assign({}, g, {
+    order, scores, entered, streak, skips,
+    turn: over ? (turn + order.length - 1) % order.length : turn,
+    rollout: false,
+    states: ["tray","tray","tray","tray","tray","tray"],
+    points: 0, live: 6, rolled: false, zonk: false, zonkText: "",
+    triggeredBy, over, winner: winner ?? null, stamp: Date.now()
+  }), "remove the player");
+  // Off the table too, so the next game doesn't seat them. If they come back
+  // and open the app, their phone sits them down again.
+  remove(ref(db, "table/players/" + pid)).catch(()=>{});
+  toast((g.names[pid] || "Player") + " was removed from the game.");
+}
+
 function abandonGame(){
   const g = G();
   if(!g) return;
@@ -2519,6 +2579,7 @@ $("btnCancelRoll").onclick = () => remove(rollRef()).catch(()=>{});
 $("btnQuitSolo").onclick = () => { if(soloGame) endSolo(); };
 $("btnSkip").onclick = () => skipTurn(TURN_LIMIT_MS);
 $("btnAbandon").onclick = abandonGame;
+$("btnBoot").onclick = bootPlayer;
 $("quoteInput").addEventListener("input", () => clearTimeout(quoteTimer));
 $("btnQuote").onclick = () => { clearTimeout(quoteTimer); postQuote($("quoteInput").value); };
 $("btnSkipQuote").onclick = () => { clearTimeout(quoteTimer); postQuote("").then(backToTable); };

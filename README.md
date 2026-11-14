@@ -155,18 +155,25 @@ The app also requests a screen wake lock so phones don't sleep mid-game.
 
 Cellular being what it is, a player will occasionally vanish mid-turn. Nothing
 is ever skipped automatically — a slow player is left to play. But once a turn
-has gone two minutes without a sign of life, everyone else sees a **Skip this
+has gone 90 seconds without a sign of life, everyone else sees a **Skip this
 player** button, and one of them decides. Skipping banks nothing for that player
 and moves on. Nobody is offered the chance to skip themselves.
 
-The two minutes are counted between signs of life, not from the start of the
+Skips are counted per player, running; a roll by that player clears the count.
+Once someone has been skipped twice in a row, the next time their turn sits
+quiet for 90 seconds the table also gets a **Remove** button. Removing them takes
+them and their score out of the game and off the table, and play carries on with
+whoever sat after them. If they come back and open the app, they sit down again
+for the next game.
+
+The 90 seconds are counted between signs of life, not from the start of the
 turn. Rolling and banking are the obvious ones, but picking which dice to keep
 writes nothing, so a player deliberating would otherwise look identical to one
 who has walked off. Their phone marks the turn while they choose — at most once
 every twenty seconds, so it costs next to nothing — and the quiet is measured
 from whichever came last.
 
-At five minutes the turn goes by itself, scoring nothing — two minutes hands the
+At five minutes the turn goes by itself, scoring nothing — 90 seconds hands the
 table a button and leaves the decision to them, but one player wandering off must
 not be able to park the game indefinitely. Whichever phone is watching fires it,
 and the quiet is re-read at the moment of writing, so a second phone arriving
