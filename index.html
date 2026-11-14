@@ -212,12 +212,16 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .act:disabled{opacity:.36}
 .watching{text-align:center;padding:17px 10px;color:var(--muted);font-size:15px;
   background:var(--felt);border:1px solid var(--edge);border-radius:12px;flex:1}
-.escape{display:flex;justify-content:center;gap:14px;padding-bottom:6px;min-height:34px}
+/* Last thing on the screen, so it carries the clearance for the phone's own
+   home bar / gesture strip - generously, since an Android browser tab reports
+   no safe-area inset at all. */
+.escape{display:flex;justify-content:center;gap:14px;min-height:34px;
+  padding-bottom:calc(env(safe-area-inset-bottom) + 30px)}
 .escape button{display:none;color:var(--muted);font-size:13px;padding:8px 4px;
   text-decoration:underline;text-underline-offset:4px}
 .escape button.on,.escape button.always{display:block}
 /* Table talk: one line, one speaker at a time. 16px so iOS doesn't zoom on focus. */
-.chatbar{padding:2px 0 max(10px,env(safe-area-inset-bottom))}
+.chatbar{padding:0 0 4px}
 .chatbar.off{display:none}
 #chatInput{width:100%;padding:11px 13px;border-radius:10px;background:var(--felt);
   border:1px solid var(--edge);color:var(--cream);font-size:16px;font-family:inherit;
@@ -410,15 +414,15 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <div class="row kept-row" id="keptRow"></div>
   </div>
   <div class="actions" id="actions"></div>
+  <div class="chatbar" id="chatBar">
+    <input type="text" id="chatInput" maxlength="120" placeholder="Tap to say something"
+      autocomplete="off" autocorrect="on" enterkeyhint="done" aria-label="Table talk">
+  </div>
   <div class="escape">
     <button class="js-rules always">Rules</button>
     <button id="btnSkip">Skip this player</button>
     <button id="btnBoot">Remove player</button>
     <button id="btnAbandon">Abandon this game</button>
-  </div>
-  <div class="chatbar" id="chatBar">
-    <input type="text" id="chatInput" maxlength="120" placeholder="Tap to say something"
-      autocomplete="off" autocorrect="on" enterkeyhint="done" aria-label="Table talk">
   </div>
 </section>
 
@@ -2616,12 +2620,21 @@ if("serviceWorker" in navigator){
    typed, and their line stays shut until then. The last thing said stays up
    until somebody else takes the line. Not in solo - there is nobody to read it. */
 const CHAT_IDLE_MS = 30000;
-const CHAT_KEEP_MS = 15 * 60 * 1000;
+const CHAT_KEEP_MS = 10000;   // a finished line keeps the floor this long
+const CHAT_STALE_MS = 60 * 60 * 1000;  // and stays on screen until replaced, up to an hour
 let chatMine = false, chatIdleTimer = null, chatOpenTimer = null;
 
-// Someone else holds the line: they haven't finished and haven't gone quiet.
-const chatHeldBy = c => c && c.by && c.by !== myId && !c.done
-  && Date.now() - (c.at || 0) < CHAT_IDLE_MS;
+// Someone else is typing: they haven't finished and haven't gone quiet.
+const chatTyping = c => !!(c && c.by && !c.done && Date.now() - (c.at || 0) < CHAT_IDLE_MS);
+// How long a line keeps the floor: while it is being typed, then ten seconds
+// once it is finished. After that it stays on screen until somebody else
+// types, so it is up for ten seconds or until replaced, whichever is longer. A phone that vanished mid-sentence never marks it
+// finished, so its ten seconds run from when it went quiet.
+const chatUntil = c => !c || !c.by ? 0
+  : (c.at || 0) + (c.done ? 0 : CHAT_IDLE_MS) + CHAT_KEEP_MS;
+// Someone else has the floor - typing, or their finished line is still in its
+// ten seconds - so nobody else can take the line yet.
+const chatHeldBy = c => !!(c && c.by && c.by !== myId && Date.now() < chatUntil(c));
 
 function renderChat(){
   const bar = $("chatBar"), input = $("chatInput");
@@ -2630,16 +2643,16 @@ function renderChat(){
   if(off || chatMine) return;                 // never touch the line mid-sentence
   const c = table.chat;
   const held = chatHeldBy(c);
-  bar.classList.toggle("busy", !!held);
-  input.readOnly = !!held;
-  // A finished line stays up for a while, not forever: yesterday's last word
-  // shouldn't greet tonight's table.
-  const fresh = c && (held || Date.now() - (c.at || 0) < CHAT_KEEP_MS);
-  input.value = fresh && (c.text || held) ? (c.name || "?") + ": " + (c.text || "") : "";
-  // Reopen the line for this phone when the holder's 30 seconds run out, even
-  // if nothing else is written in the meantime.
+  const until = chatUntil(c);
+  // Up until replaced - but an hour-old line from a past game is let go.
+  const showing = !!c && (Date.now() < until || Date.now() - (c.at || 0) < CHAT_STALE_MS);
+  bar.classList.toggle("busy", chatTyping(c) && c.by !== myId);
+  input.readOnly = held;
+  input.value = showing && (c.text || chatTyping(c)) ? (c.name || "?") + ": " + (c.text || "") : "";
+  // Hand the line back when the floor runs out, even if nothing else is
+  // written in the meantime. (A finished line arrives with a fresh stamp.)
   clearTimeout(chatOpenTimer);
-  if(held) chatOpenTimer = setTimeout(renderChat, CHAT_IDLE_MS - (Date.now() - c.at) + 50);
+  if(Date.now() < until) chatOpenTimer = setTimeout(renderChat, until - Date.now() + 50);
 }
 
 function armChatIdle(){

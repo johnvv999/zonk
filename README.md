@@ -236,8 +236,8 @@ A single line at the foot of the game screen. Tap it and the phone's keyboard
 comes up; everyone else sees `Name: text` as you type. While you have it, nobody
 else can type there. You're finished when you press Done on the keyboard, put
 the keyboard away, or go 30 seconds without touching it - then the line is open
-to the next person. The last thing said stays up (for up to 15 minutes) until
-someone else takes the line. It lives at `table/chat`, which the existing
+to the next person. A finished line keeps the floor for 10 seconds - nobody else can type over it -
+then stays on screen until someone else types (or an hour passes). It lives at `table/chat`, which the existing
 `table` rule already covers, so there's nothing to change in the Firebase
 rules. Not shown in solo games.
 
