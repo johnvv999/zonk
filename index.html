@@ -109,12 +109,13 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .prow .tag{color:var(--brass);font-size:12px}
 
 #game{padding:max(8px,env(safe-area-inset-top)) 14px 0}
-.standings{display:flex;gap:6px;overflow-x:auto;padding-bottom:9px;scrollbar-width:none}
-.standings::-webkit-scrollbar{display:none}
-.chip{flex:none;padding:7px 11px;border-radius:9px;background:var(--felt);border:1px solid var(--edge);min-width:74px}
+/* Every player's score stays on screen: up to three across, wrapping to a second
+   row rather than scrolling sideways out of sight. --cols is set per game. */
+.standings{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(0,1fr));gap:6px;padding-bottom:9px}
+.chip{min-width:0;padding:7px 11px;border-radius:9px;background:var(--felt);border:1px solid var(--edge)}
 .chip.active{border-color:var(--brass);background:#4A3A2A}
 .chip.me{box-shadow:inset 0 0 0 1px var(--muted)}
-.chip .who{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:10ch}
+.chip .who{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip.active .who{color:var(--brass)}
 .chip .pts{font-family:var(--display);font-weight:700;font-size:19px;font-variant-numeric:tabular-nums}
 
@@ -550,7 +551,7 @@ const firebaseConfig = {
 // what ships is always the stamp, so this never needs bumping by hand.
 const VERSION = "20260903-1636";
 const TARGET = 10000;
-const MAX_PLAYERS = 8;
+const MAX_PLAYERS = 6;
 const TURN_LIMIT_MS = 90000;    // quiet this long and the skip button appears
 const BOOT_AFTER_SKIPS = 2;     // skipped this many turns running and they can be removed
 const AUTO_SKIP_MS = 300000;    // and this long and it goes by itself
@@ -1086,7 +1087,7 @@ async function sitDown(){
   const snap = await get(playersRef());
   const players = snap.exists() ? snap.val() : {};
   if(!players[myId] && Object.keys(players).length >= MAX_PLAYERS)
-    return fail("homeErr","The table is full at eight players.");
+    return fail("homeErr","The table is full at six players.");
 
   await set(ref(db, "table/players/" + myId), {
     name: myName(),
@@ -1552,6 +1553,9 @@ function renderGame(){
   const iPlay = iPlaying;
 
   const s = $("standings"); s.innerHTML = "";
+  // 2-3 players on one row, 4 as two pairs, 5-6 as two rows of three.
+  const n = g.order.length;
+  s.style.setProperty("--cols", n <= 3 ? n : Math.ceil(n / 2));
   g.order.forEach(pid => {
     const c = document.createElement("div");
     c.className = "chip" + (pid===active && !g.over ? " active":"") + (pid===myId ? " me":"");

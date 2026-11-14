@@ -1,6 +1,6 @@
 # Zonk
 
-Six-dice Zonk for up to 8 players on their own phones, anywhere. Static site on
+Six-dice Zonk for up to 6 players on their own phones, anywhere. Static site on
 GitHub Pages, live game state and archive in Firebase Realtime Database.
 Free tier throughout, no payment method required.
 
@@ -309,7 +309,7 @@ Two things worth knowing if a client ever looks stuck on an old build:
 ## Costs
 
 Realtime Database on Spark gives 1 GB stored, 10 GB downloaded per month, and 100
-simultaneous connections. A full game with 8 players moves roughly 5 MB, so you
+simultaneous connections. A full game with 6 players moves roughly 5 MB, so you
 have room for hundreds of games a month. Spark enforces hard cut-offs rather than
 overage billing — if you somehow hit a limit the app stops working until reset, and
 you never get a bill.
