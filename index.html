@@ -1120,7 +1120,7 @@ let autoRollTimer = null, autoRollFor = null;
 // else sees it on the write that follows. These two bridge the gap so the
 // roller isn't shown it twice: the stamp it was shown for, and a one-shot
 // set by doRoll when that keep is the one being written.
-
+let rolloutLocalFor = null, rolloutSeenLocally = false;
 // Who was already on the board last time we looked, so getting there shows once.
 let cosmosTimer = null, cosmosFor = null, cosmosArtAsked = false;
 let enteredKnown = null, enteredGame = null;
@@ -1739,24 +1739,15 @@ function renderGame(){
     kept.append(n);
   }
 
-  // All six set aside. The roller gets the roll-out now, and tells the table
-  // at the same moment by marking this roll as rolled out - every other phone
-  // puts the picture up as soon as that lands, not on the next roll. A colour
-  // coded has its own screen and stands in for this one.
+  // All six set aside. The roller gets the roll-out now rather than waiting on
+  // the write; afterRender hands it to everyone else when the write lands, and
+  // skips this phone because doRoll saw the same stamp. A colour coded has its
+  // own screen and stands in for this one.
   if(canTap && selScore !== null && (pendIdx.length + keptIdx.length) === 6
      && rolloutFor !== g.stamp && !colorCoded(g.faces, g.states)){
     rolloutFor = g.stamp;
+    rolloutLocalFor = g.stamp;
     showRollout();
-    if(!soloGame && g.rolloutAt !== g.stamp){
-      const stamp = g.stamp;
-      // Out of this render first: writeGame redraws, and only if nothing has
-      // moved on in the meantime.
-      setTimeout(() => {
-        const cur = G();
-        if(cur && cur.stamp === stamp && !cur.zonk && !cur.over)
-          writeGame(Object.assign({}, cur, { rolloutAt: stamp }), "show the roll-out");
-      }, 0);
-    }
   }
 
   // All six down and they score, so the turn carries on by itself: nobody
@@ -1830,20 +1821,15 @@ function afterRender(g, myTurn){
   preloadCcArt();
 
   // The roll-out belongs to everyone at the table, not just whoever rolled it.
-  // The roller marks the roll (rolloutAt) the moment all six are picked, so
-  // every phone shows it then. If that mark never made it, the next roll
-  // still carries it (rollout/rolloutOf) and the picture comes up then.
-  // Keyed to the roll that rolled out, so no phone sees it twice.
-  if(!g.over){
-    const key = g.rolloutAt && g.rolloutAt === g.stamp ? g.stamp
-              : g.rollout ? g.rolloutOf : null;
-    if(key && rolloutFor !== key){
-      rolloutFor = key;
-      // At a shared table everyone sees it. In solo the other player is the
-      // computer, and its roll-out is not the player's to celebrate.
-      const worthSeeing = !soloGame || g.order[g.turn] === myId;
-      if(worthSeeing && !g.zonk) showRollout();
-    }
+  // It rides on the game write, so every phone sees the same thing.
+  if(g.rollout && !g.zonk && !g.over && rolloutFor !== g.stamp){
+    rolloutFor = g.stamp;
+    // doRoll leaves the turn where it was, so this still names whoever rolled.
+    // At a shared table everyone sees it. In solo the other player is the
+    // computer, and its roll-out is not the player's to celebrate.
+    const worthSeeing = !soloGame || g.order[g.turn] === myId;
+    if(rolloutSeenLocally) rolloutSeenLocally = false;   // the roller already had it
+    else if(worthSeeing) showRollout();
   }
 
   // Somebody has just got on the board. Once per game per player, and never on
@@ -2165,6 +2151,7 @@ function doRoll(){
   // A colour coded already has a screen of its own and stands in for this one.
   const wasColourCoded = colorCoded(g.faces, g.states);
   const rolledOut = live === 0 && !wasColourCoded;
+  if(rolledOut && rolloutLocalFor === g.stamp) rolloutSeenLocally = true;
   if(live === 0){ states = states.map(() => "tray"); live = 6; }
   const faces = g.faces.slice();
   states.forEach((st,i) => { if(st !== "kept") faces[i] = 1 + Math.floor(Math.random()*6); });
@@ -2182,10 +2169,6 @@ function doRoll(){
   writeGame(Object.assign({}, g, {
     faces, states, points, live, rolled: true, zonk: zonked, streak, skips,
     rollout: rolledOut,
-    // Which roll it was that rolled out, so a phone that already put the
-    // picture up for it (from rolloutAt) doesn't show it a second time.
-    rolloutOf: rolledOut ? g.stamp : null,
-    rolloutAt: null,
     // Zonked on the first roll of the turn: a Rôle-à. Written into the game so
     // every phone puts the picture up, not just the roller's.
     opener: zonked && !g.rolled,
