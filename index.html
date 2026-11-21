@@ -229,6 +229,16 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 #chatInput::placeholder{color:var(--muted)}
 #chatInput:focus{outline:none;border-color:var(--brass)}
 .chatbar.busy #chatInput{border-color:var(--live);color:var(--cream)}
+/* What's been said shows in a strip you can swipe left and right to read a long
+   line; a tap (not a swipe) opens the typing box when the line is free. */
+.chatshow{display:none;width:100%;padding:11px 13px;border-radius:10px;background:var(--felt);
+  border:1px solid var(--edge);color:var(--cream);font-size:16px;line-height:normal;
+  white-space:nowrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;touch-action:pan-x;scrollbar-width:none;cursor:text}
+.chatshow::-webkit-scrollbar{display:none}
+.chatbar.showing .chatshow{display:block}
+.chatbar.showing #chatInput{display:none}
+.chatbar.busy .chatshow{border-color:var(--live)}
 
 .veil{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;
   justify-content:center;gap:15px;padding:30px 24px;text-align:center;
@@ -415,6 +425,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
   </div>
   <div class="actions" id="actions"></div>
   <div class="chatbar" id="chatBar">
+    <div class="chatshow" id="chatShow" role="log" aria-label="Table talk"></div>
     <input type="text" id="chatInput" maxlength="120" placeholder="Tap to say something"
       autocomplete="off" autocorrect="on" enterkeyhint="done" aria-label="Table talk">
   </div>
@@ -2680,6 +2691,14 @@ function renderChat(){
   bar.classList.toggle("busy", chatTyping(c) && c.by !== myId);
   input.readOnly = held;
   input.value = showing && (c.text || chatTyping(c)) ? (c.name || "?") + ": " + (c.text || "") : "";
+  const strip = $("chatShow");
+  const changed = strip.textContent !== input.value;
+  strip.textContent = input.value;
+  bar.classList.toggle("showing", !!input.value);
+  // While someone is typing, keep their newest letters in view; a finished
+  // line is left where the reader has swiped it to.
+  if(changed && chatTyping(c)) strip.scrollLeft = strip.scrollWidth;
+  else if(changed) strip.scrollLeft = 0;
   // Hand the line back when the floor runs out, even if nothing else is
   // written in the meantime. (A finished line arrives with a fresh stamp.)
   clearTimeout(chatOpenTimer);
@@ -2752,6 +2771,12 @@ function finishChat(){
 }
 
 $("chatInput").addEventListener("focus", claimChat);
+// A swipe scrolls the strip and never fires a click, so a click here is a tap.
+$("chatShow").addEventListener("click", () => {
+  if(!table || chatHeldBy(table.chat)) return;  // someone has the floor: just read
+  $("chatBar").classList.remove("showing");
+  $("chatInput").focus();                       // still inside the tap, so phones allow it
+});
 $("chatInput").addEventListener("input", typeChat);
 $("chatInput").addEventListener("keydown", e => {
   if(e.key === "Enter"){ e.preventDefault(); finishChat(); }
