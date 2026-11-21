@@ -11,9 +11,9 @@ const VERSION = "dev";
 const CACHE = "zonk-" + VERSION;
 const ASSETS = [
   "splash.webp", "ptf.webp", "colorcoded.webp", "rollout.webp", "cosmos.webp",
-  "scoreb.webp",
+  "scoreb.webp", "role-a.webp",
   "og.jpg", "icon-192.png", "icon-512.png", "apple-touch-icon.png"
-];
+].map(a => "images/" + a);
 
 self.addEventListener("install", e => {
   e.waitUntil(
@@ -35,8 +35,7 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   if(e.request.method !== "GET" || url.origin !== location.origin) return;
-  const name = url.pathname.split("/").pop();
-  if(!ASSETS.includes(name)) return;      // everything else, the network decides
+  if(!ASSETS.some(a => url.pathname.endsWith("/" + a))) return;   // everything else, the network decides
 
   // The page asks for these with ?v=<version> on the end; the cache is already
   // per-version, so the query is not what identifies them here.

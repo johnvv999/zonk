@@ -11,15 +11,16 @@ Free tier throughout, no payment method required.
 | `index.html` | The whole game. The only file you need to edit. |
 | `database.rules.json` | Security rules to paste into the Firebase console. |
 | `local-passphone.html` | Earlier single-device version. No Firebase, no internet. Keep or delete. |
-| `splash.webp` | The opening art, shown for three seconds on every launch. |
-| `manifest.json`, `icon-*.png`, `apple-touch-icon.png` | Home screen install: name, icon and standalone launch. |
-| `og.jpg` | Link preview, shown when the URL is texted or posted. |
-| `colorcoded.webp` | The full-screen art for a colour coded roll. |
-| `rollout.webp` | The full-screen art for a roll-out - all six dice scoring. |
-| `cosmos.webp` | The full-screen art for getting on the board. |
-| `scoreb.webp` | The full-screen art for a Score-B. |
+| `images/splash.webp` | The opening art, shown for three seconds on every launch. |
+| `manifest.json`, `images/icon-*.png`, `images/apple-touch-icon.png` | Home screen install: name, icon and standalone launch. |
+| `images/og.jpg` | Link preview, shown when the URL is texted or posted. |
+| `images/colorcoded.webp` | The full-screen art for a colour coded roll. |
+| `images/rollout.webp` | The full-screen art for a roll-out - all six dice scoring. |
+| `images/cosmos.webp` | The full-screen art for getting on the board. |
+| `images/scoreb.webp` | The full-screen art for a Score-B. |
 | `sw.js` | Keeps the artwork on the device between visits. |
-| `ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
+| `images/ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
+| `images/role-a.webp` | The full-screen art for a Rôle-à - zonking on the opening roll (not wired in yet). |
 | `.github/workflows/deploy.yml` | Builds and publishes the site, stamping `VERSION` on the way out. |
 
 ---
@@ -299,7 +300,7 @@ A solo player who never entered a name is skipped rather than filed under "You".
 
 ## Link previews
 
-Texting the URL brings up a card with `og.jpg` on it. That comes from the Open
+Texting the URL brings up a card with `images/og.jpg` on it. That comes from the Open
 Graph tags in the `<head>` — iMessage, Google Messages, WhatsApp and Signal all
 read the same ones.
 
@@ -310,7 +311,7 @@ if the site ever moves, they have to move with it.
 
 Previews are cached hard, by the messaging apps and by their servers. Once a
 friend's phone has drawn a card for a URL it will keep drawing that one, so
-changing `og.jpg` won't refresh what somebody has already seen. Sending
+changing `images/og.jpg` won't refresh what somebody has already seen. Sending
 `?x=2` on the end of the link is enough to make it fetch again.
 
 ## Versioning
