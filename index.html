@@ -254,10 +254,10 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 /* Absolutely placed rather than a flex child, so the veil's padding doesn't
    stop it reaching the screen edges. auto width/height against both max
    constraints is what fits it to the viewport without distorting it. */
-#ptfArt{display:none;position:absolute;inset:0;margin:auto;
+#ptfArt,#roleaArt{display:none;position:absolute;inset:0;margin:auto;
   width:auto;height:auto;max-width:100%;max-height:100%;
   transform-origin:center;will-change:transform}
-#ptfArt.on{display:block}
+#ptfArt.on,#roleaArt.on{display:block}
 .nope-word{color:var(--brass)}
 .rollout-word{color:var(--live)}
 .cc-r{color:var(--dice-red)}
@@ -488,6 +488,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 <div class="veil" id="veilZonk">
   <h2 class="zonk-word" id="zonkWord">ZONK</h2>
   <img id="ptfArt" alt="Pack the F@#&#9733;&amp;R">
+  <img id="roleaArt" alt="Rôle-à">
 </div>
 
 <div class="veil" id="veilWin">
@@ -608,6 +609,7 @@ const CPU_ROLL_SHOW_MS = 3000; // the computer's roll is news - hold it longer
 const CPU_PTF_SHOW_MS = 2000;  // and a beat less before the PTF picture
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 2000;
+const ROLE_A_HOLD_MS = 4000;  // a Rôle-à - zonking on the opening roll - holds longer
 const BANK_MIN_DICE = 4;     // dice set aside before a turn may be ended
 /* Nothing counts until you are on the board, and it takes 500 in one turn to
    get there. Bank less and the turn is simply not endable - the points do not
@@ -635,6 +637,7 @@ const CC_ART = "images/colorcoded.webp?v=" + VERSION;
 const ROLLOUT_ART = "images/rollout.webp?v=" + VERSION;
 const COSMOS_ART = "images/cosmos.webp?v=" + VERSION;
 const SCORE_B_ART = "images/scoreb.webp?v=" + VERSION;
+const ROLE_A_ART = "images/role-a.webp?v=" + VERSION;
 const COSMOS_HOLD_MS = 2000;
 const ROLLOUT_HOLD_MS = 2000;
 const SPLASH_MS = 3000;      // how long the opening art holds
@@ -988,6 +991,7 @@ function preloadCcArt(){
   ccArtAsked = true;
   $("ccArt").src = CC_ART;
   $("rolloutArt").src = ROLLOUT_ART;   // a roll-out is common; fetch it alongside
+  $("roleaArt").src = ROLE_A_ART;       // so is zonking on the opening roll
 }
 
 /* A Score-B: somebody's banked score has crossed another 2,500, which puts the
@@ -1900,15 +1904,18 @@ function afterRender(g, myTurn){
                   : ptf      ? CPU_PTF_SHOW_MS
                              : CPU_ROLL_SHOW_MS;
     const showIn = showFor - since;
-    $("zonkWord").textContent = ptf ? "PTF" : "ZONK";
+    // A PTF outranks a Rôle-à if one roll is both.
+    const rolea = !ptf && !!g.opener;
+    $("zonkWord").textContent = ptf ? "PTF" : rolea ? "Rôle\u2011à" : "ZONK";
     // afterRender runs on every render, so the entrance is keyed to the stamp -
     // it plays once per zonk rather than restarting under it.
     const reveal = () => {
       // A PTF that arrives before the art has finished downloading falls back
       // to the word, rather than flashing an empty screen.
-      const art = $("ptfArt");
-      const useArt = ptf && art.complete && art.naturalWidth > 0;
-      art.classList.toggle("on", useArt);
+      const art = rolea ? $("roleaArt") : $("ptfArt");
+      const useArt = (ptf || rolea) && art.complete && art.naturalWidth > 0;
+      $("ptfArt").classList.toggle("on", useArt && ptf);
+      $("roleaArt").classList.toggle("on", useArt && rolea);
       $("zonkWord").classList.toggle("off", useArt);
       veil("veilZonk", true);
       if(zonkAnimFor === g.stamp) return;
@@ -1927,7 +1934,8 @@ function afterRender(g, myTurn){
     // too, so it is always the one that advances. Without this the computer's
     // zonks sat on screen for the fallback's extra four seconds.
     const mine = !!soloGame || g.order[g.turn] === myId;
-    const due = showFor + (ptf ? PTF_HOLD_MS : ZONK_HOLD_MS) + (mine ? 0 : 4000) - since;
+    const hold = ptf ? PTF_HOLD_MS : rolea ? ROLE_A_HOLD_MS : ZONK_HOLD_MS;
+    const due = showFor + hold + (mine ? 0 : 4000) - since;
     zonkTimer = setTimeout(passTheDice, Math.max(0, due));
   } else {
     veil("veilZonk", false);
@@ -2161,6 +2169,9 @@ function doRoll(){
   writeGame(Object.assign({}, g, {
     faces, states, points, live, rolled: true, zonk: zonked, streak, skips,
     rollout: rolledOut,
+    // Zonked on the first roll of the turn: a Rôle-à. Written into the game so
+    // every phone puts the picture up, not just the roller's.
+    opener: zonked && !g.rolled,
     zonkText: zonked ? (points
       ? g.names[roller] + " loses " + points.toLocaleString() + " from this turn."
       : "Nothing scored. Nothing lost.") : "",

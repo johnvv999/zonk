@@ -20,7 +20,7 @@ Free tier throughout, no payment method required.
 | `images/scoreb.webp` | The full-screen art for a Score-B. |
 | `sw.js` | Keeps the artwork on the device between visits. |
 | `images/ptf.webp` | The full-screen art for a PTF - three zonks in a row. |
-| `images/role-a.webp` | The full-screen art for a Rôle-à - zonking on the opening roll (not wired in yet). |
+| `images/role-a.webp` | The full-screen art for a Rôle-à - zonking on the opening roll of a turn. Held 4 seconds, on every phone. |
 | `.github/workflows/deploy.yml` | Builds and publishes the site, stamping `VERSION` on the way out. |
 
 ---
