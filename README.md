@@ -348,7 +348,8 @@ to notice the storage.
 ## Rules implemented
 
 1s are 100, 5s are 50, three of a kind is 100 × face (1000 for three 1s), a 1–6
-straight is 1500 and three pairs is 1500.
+straight is 1500, three pairs is 1000, and a colour coded (three pairs where each
+colour's two dice match) is 1500.
 
 There is no four-of-a-kind bonus, and never was one here. A group of three is the
 whole set; a fourth matching die adds nothing of its own unless it is a 1 or a 5,
@@ -384,9 +385,10 @@ three dice, so you roll on. What counts is everything kept in the current run of
 six plus whatever is going down now; a rollout brings all six back, so the count
 starts again with them.
 
-Three pairs is strict — three distinct values with exactly two each. Some tables
-count four-of-a-kind plus a pair, and some pay a bonus for four or more of a
-kind; neither is played here, and both would be a change in `scoreSet()`.
+Three pairs may repeat a number: four of a kind plus a pair, or six alike, also
+count as three pairs (1000) — though scoring them as triples is used instead when
+that pays more. There is no bonus for four or more of a kind; that would be a
+change in `scoreSet()`.
 
 ## Where things live in the code
 

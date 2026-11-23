@@ -198,11 +198,11 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .die.kept{opacity:.86}
 /* No fill-mode: once the tumble ends the animated transform is dropped so
    .die.sel's lift can take over again. */
-.die.tumble{animation:drop .5s cubic-bezier(.3,1.4,.5,1) var(--tdelay,0ms)}
-.die.tumble .cube{animation:spin3d .5s cubic-bezier(.3,1.05,.45,1) var(--tdelay,0ms)}
+.die.tumble{animation:drop 1s cubic-bezier(.3,1.4,.5,1) var(--tdelay,0ms)}
+.die.tumble .cube{animation:spin3d 1s cubic-bezier(.3,1.05,.45,1) var(--tdelay,0ms)}
 @keyframes drop{0%{transform:translateY(-26px) scale(.86)}
   60%{transform:translateY(0) scale(1.03)}100%{transform:none}}
-@keyframes spin3d{0%{transform:scale(var(--fit)) rotateX(-210deg) rotateY(260deg)}
+@keyframes spin3d{0%{transform:scale(var(--fit)) rotateX(-930deg) rotateY(980deg)}
   100%{transform:scale(var(--fit)) var(--tilt) var(--face-rot)}}
 
 .actions{display:flex;gap:10px;padding-bottom:12px}
@@ -513,7 +513,8 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <dl>
       <dt>Each 1</dt><dd>100</dd><dt>Each 5</dt><dd>50</dd>
       <dt>Three of a kind</dt><dd>100 x face</dd><dt>Three 1s</dt><dd>1000</dd>
-      <dt>Straight 1-6</dt><dd>1500</dd><dt>Three pairs</dt><dd>1500</dd>
+      <dt>Straight 1-6</dt><dd>1500</dd><dt>Three pairs</dt><dd>1000</dd>
+      <dt>Color coded</dt><dd>1500</dd>
     </dl>
     <p>Three is the whole set. A fourth matching die adds nothing on its own - unless it's a 1 or a 5, which always score singly. So four 2s is still 200, and the odd one can't be kept.</p>
     <h3>Your turn</h3>
@@ -580,7 +581,7 @@ const firebaseConfig = {
 // Stamped automatically on deploy by .github/workflows/deploy.yml. The value
 // committed here is only a fallback for running the file straight from disk -
 // what ships is always the stamp, so this never needs bumping by hand.
-const VERSION = "20260903-1636";
+const VERSION = "20261122-1930";
 const TARGET = 10000;
 const MAX_PLAYERS = 8;
 // Typed into the chat line during a game (or the name box, then "Sit down"),
@@ -604,8 +605,8 @@ const ROLLOFF_MAX_MS = 5 * 60 * 1000;
 const CC_DELAY_MS = 3000;   // read the roll that did it before the screen
 const CC_HOLD_MS = 2000;   // every picture holds for the same two seconds
 const CC_ART_WAIT_MS = 3000; // how long to wait on the picture before using words
-const ROLL_SHOW_MS = 2000;   // long enough to read the losing dice
-const CPU_ROLL_SHOW_MS = 3000; // the computer's roll is news - hold it longer
+const ROLL_SHOW_MS = 2700;   // the 1.4s roll plus time to read the losing dice
+const CPU_ROLL_SHOW_MS = 3700; // the computer's roll is news - hold it longer
 const CPU_PTF_SHOW_MS = 2000;  // and a beat less before the PTF picture
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 2000;
@@ -694,7 +695,7 @@ function scoreSet(dice){
     // Three pairs may repeat a number: 4-4-4-4-2-2 or six of one face also count.
     let pairs=0, clean=true;
     for(let f=1;f<=6;f++){ if(c[f]%2===0) pairs+=c[f]/2; else clean=false; }
-    if(clean && pairs===3) better(1500);
+    if(clean && pairs===3) better(1000);   // colour coded pairs pay 1500 in pickScore()
   }
   // Only a group of three counts as a set - there is no bonus for a fourth or
   // fifth matching die. Leftovers score singly if they are 1s or 5s; any other
@@ -768,9 +769,9 @@ function colorCoded(faces, states){
   });
 }
 
-// What a keep is worth, given which dice it is. A colour coded is scored as
-// three pairs, 1500, even when two colours share a number (red 3-3 white 3-3
-// green 2-2) - which three pairs now also allows by the numbers alone.
+// What a keep is worth, given which dice it is. Plain three pairs is 1000; a
+// colour coded (each colour's two dice match) is 1500, even when two colours
+// share a number (red 3-3 white 3-3 green 2-2).
 const COLOR_CODED_PTS = 1500;
 function pickScore(faces, idxs){
   if(idxs.length === 6 && colorCoded(faces, null)) return COLOR_CODED_PTS;
@@ -1781,7 +1782,7 @@ function renderGame(){
     lastFaces = key;
     tray.querySelectorAll(".die").forEach((el,i) => {
       el.classList.remove("tumble"); void el.offsetWidth;
-      el.style.setProperty("--tdelay", (i*40) + "ms");
+      el.style.setProperty("--tdelay", (i*80) + "ms");
       el.classList.add("tumble");
     });
   }
