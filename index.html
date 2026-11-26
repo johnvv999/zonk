@@ -198,8 +198,8 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
 .die.kept{opacity:.86}
 /* No fill-mode: once the tumble ends the animated transform is dropped so
    .die.sel's lift can take over again. */
-.die.tumble{animation:drop 1s cubic-bezier(.3,1.4,.5,1) var(--tdelay,0ms)}
-.die.tumble .cube{animation:spin3d 1s cubic-bezier(.3,1.05,.45,1) var(--tdelay,0ms)}
+.die.tumble{animation:drop 1.5s cubic-bezier(.3,1.4,.5,1) var(--tdelay,0ms)}
+.die.tumble .cube{animation:spin3d 1.5s cubic-bezier(.3,1.05,.45,1) var(--tdelay,0ms)}
 @keyframes drop{0%{transform:translateY(-26px) scale(.86)}
   60%{transform:translateY(0) scale(1.03)}100%{transform:none}}
 @keyframes spin3d{0%{transform:scale(var(--fit)) rotateX(-930deg) rotateY(980deg)}
@@ -605,8 +605,8 @@ const ROLLOFF_MAX_MS = 5 * 60 * 1000;
 const CC_DELAY_MS = 3000;   // read the roll that did it before the screen
 const CC_HOLD_MS = 2000;   // every picture holds for the same two seconds
 const CC_ART_WAIT_MS = 3000; // how long to wait on the picture before using words
-const ROLL_SHOW_MS = 2700;   // the 1.4s roll plus time to read the losing dice
-const CPU_ROLL_SHOW_MS = 3700; // the computer's roll is news - hold it longer
+const ROLL_SHOW_MS = 3400;   // the 2.1s roll plus time to read the losing dice
+const CPU_ROLL_SHOW_MS = 4400; // the computer's roll is news - hold it longer
 const CPU_PTF_SHOW_MS = 2000;  // and a beat less before the PTF picture
 const ZONK_HOLD_MS = 2000;   // then the ZONK screen
 const PTF_HOLD_MS = 2000;
@@ -1092,7 +1092,7 @@ let statsReread = null;                   // the game whose record was re-read
 const COUNTED = "zonk.counted";           // the last game this device counted
 // Newcomers this player has already said no to, so they are asked once each.
 let waitDeclined = new Set();
-let ccTimer = null, ccHideTimer = null, ccFor = null, ccSetFor = null, ccArtAsked = false;
+let ccTimer = null, ccHideTimer = null, ccFor = null, ccArtAsked = false;
 
 // A solo game lives only in this variable - it never touches the shared table,
 // so any number of people can play solo at once while a group game runs.
@@ -1662,17 +1662,9 @@ function renderGame(){
     : (iPlay ? "" : "/ watching");
 
   const faces = g.faces, states = g.states.slice();
-  // A colour coded sets itself aside: all six drop below the line without the
-  // player tapping them. Index order is colour order - dice 0,1 are red, 2,3
-  // white, 4,5 green - and a colour coded can only pair faces inside one of
-  // those, so they land in their colour pairs by construction.
-  if(myTurn && g.rolled && !g.zonk && !g.over && ccSetFor !== g.stamp
-     && colorCoded(g.faces, g.states)){
-    ccSetFor = g.stamp;
-    mySel = new Set([0,1,2,3,4,5]);
-    // Standing in for the roll-out screen is doRoll's business now, since that
-    // is where the flag every phone reads gets written.
-  }
+  // A colour coded used to set itself aside automatically; now it's picked
+  // like any other roll - the player taps dice themselves, same as a
+  // straight or three pairs.
   if(myTurn && g.rolled && !g.zonk)
     mySel.forEach(i => { if(states[i]==="tray") states[i] = "sel"; });
 
@@ -1782,7 +1774,7 @@ function renderGame(){
     lastFaces = key;
     tray.querySelectorAll(".die").forEach((el,i) => {
       el.classList.remove("tumble"); void el.offsetWidth;
-      el.style.setProperty("--tdelay", (i*80) + "ms");
+      el.style.setProperty("--tdelay", (i*120) + "ms");
       el.classList.add("tumble");
     });
   }
