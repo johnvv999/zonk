@@ -513,7 +513,7 @@ input[type=text]:focus{outline:none;border-color:var(--brass)}
     <dl>
       <dt>Each 1</dt><dd>100</dd><dt>Each 5</dt><dd>50</dd>
       <dt>Three of a kind</dt><dd>100 x face</dd><dt>Three 1s</dt><dd>1000</dd>
-      <dt>Straight 1-6</dt><dd>1500</dd><dt>Three pairs</dt><dd>1000</dd>
+      <dt>Straight 1-6</dt><dd>1000</dd><dt>Three pairs</dt><dd>1000</dd>
       <dt>Color coded</dt><dd>1500</dd>
     </dl>
     <p>Three is the whole set. A fourth matching die adds nothing on its own - unless it's a 1 or a 5, which always score singly. So four 2s is still 200, and the odd one can't be kept.</p>
@@ -691,7 +691,7 @@ function scoreSet(dice){
   let best = null;
   const better = v => { if(best===null || v>best) best = v; };
   if(dice.length === 6){
-    if([1,2,3,4,5,6].every(f => c[f]===1)) better(1500);
+    if([1,2,3,4,5,6].every(f => c[f]===1)) better(1000);
     // Three pairs may repeat a number: 4-4-4-4-2-2 or six of one face also count.
     let pairs=0, clean=true;
     for(let f=1;f<=6;f++){ if(c[f]%2===0) pairs+=c[f]/2; else clean=false; }
